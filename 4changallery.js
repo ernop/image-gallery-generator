@@ -1,11 +1,48 @@
 $(function() {
 	var imageCount = 0;
 	var imagePosition = 0;
-	var images = [];
-	var originalImageNames = [];
 	
-	//called at page load
+	//imageUrls
+	var images = [];
+	
+	//the human uploaded images.
+	var originalImageNames = [];
+    console.log("format");
+	
+	// will be loaded from local storage.
+	var imageCountShown = true;
+	var imageFilenameShown = true;
+	var imageResolutionShown = false;
+	var imageMegapixelsShown = false;
+	
+	var helpShown = false;
+	
+	function loadStoredSettings(){
+		function onError(error) {
+		  console.log(`Error: ${error}`);
+		}
+		
+		
+		function apply(item) {
+		  imageCountShown = item.data.showCount;
+		  imageFilenameShown = item.data.showFilename;
+		  imageResolutionShown = item.data.showResolution;
+		  imageMegapixelsShown = item.data.showMegapixels;
+		  console.log("imageCountShown"+imageCountShown);
+		  console.log("imageFilenameShown"+imageFilenameShown);
+		  console.log("imageResolutionShown"+imageResolutionShown);
+		  console.log("imageMegapixelsShown"+imageMegapixelsShown);
+		}
+
+		let getting = browser.storage.sync.get("data");
+		getting.then(apply, onError);
+	}
+
 	function setup(){
+		console.log("1");
+		
+		loadStoredSettings();
+		
 		$(".fileText").each(function(index) {
 			var path = $(this).find("a").attr("href").substring(2);
 			images.push(path);
@@ -17,22 +54,23 @@ $(function() {
 			}
 			originalImageNames.push(originalImageName);
 		});
-		
+		console.log("2");
+		setupFirstPreloads();
+		console.log("3");
 		imageCount = images.length;
 
 		$('.navLinks').prepend('[<a href="#" class="galleryOn">Gallery Mode</a>] ');
 		$('body').wrapInner("<div class='oldBody'></div>");
 		
 		//gallery load
-		
+		console.log("4");
 		$(".galleryOn").click(function() {
 			//new document structure body > oldBody => body > (galleryViewWrapper)(oldBody)
 			$(".oldBody").hide();
+			console.log("5");
 			$("body").css("padding","0");
 			if ($("#galleryViewWrapper").length==0){
-				$('body').prepend('<div id="galleryViewWrapper"><div id="galleryProgress" style="color:white;float:left;position:absolute;z-index:202;padding:5px;"></div><div id="blackBackground" style="z-index:100;position:absolute;display:flex;align-items:center;justify-content: left:0;top:0;display:none;width:100%;height:100%;background-color:black;position:absolute;z-index:200;"><img id="targetImg" style="max-width:99%;max-height:99%;" src=""/><img id="targetImg_preload1" style="display:none;" /><img id="targetImg_preload2" style="display:none;"/><img id="targetImg_preload3" style="display:none;"/><img id="targetImg_preload4" style="display:none;"/></div></div>');
-				
-				$("#galleryProgress").hover(toggleShowImageName, toggleShowImageName);
+				$('body').prepend('<div id="galleryViewWrapper"><div id="labelZone" style="color:white;float:left;position:absolute;z-index:202;padding:5px;"></div><div id="blackBackground" style="z-index:100;position:absolute;display:flex;align-items:center;justify-content: left:0;top:0;display:none;width:100%;height:100%;background-color:black;position:absolute;z-index:200;"><img id="targetImg" style="max-width:99%;max-height:99%;" src=""/><img id="targetImg_preload1" style="display:none;" /><img id="targetImg_preload2" style="display:none;"/><img id="targetImg_preload3" style="display:none;"/><img id="targetImg_preload4" style="display:none;"/></div></div>');
 			}
 			$("#galleryViewWrapper").show();
 			$("#blackBackground").show();
@@ -60,88 +98,87 @@ $(function() {
 		
 	}
 	
+	//for now just put them inline; later use the same logic as the main part.
+	function setupFirstPreloads(){
+		var ii = 0;
+		while (ii<3 && images.length>ii-1){
+			var thing = $('<img style="display:none;" />');
+			thing.attr("src",images[ii]);
+			$('body').prepend(thing);
+			ii++;
+		}
+	}
+	
 	function backToNormal(){
 		$("#blackBackground").hide();
 		$(document).unbind('keydown');
 		$("#galleryViewWrapper").hide();
 		$('.oldBody').show();
 	}
-	
-	var imageNameShown = true;
-	var helpShown = false;
-	var showCount = true;
-	var imageDetailsShown = true;
-	
-	function toggleShowCount(){
-		showCount=!showCount;
-		handleShowingLabels();
+
+	function redrawLabel(){
+		$("#labelZone").html("");
+		imageCountLabel();
+		imageNameLabel();
+		imageResolutionLabel();
+		imageMegapixelLabel();
+		helpLabel();
 	}
 	
-	
-	
-	function handleShowingLabels(){
-		if (showCount){
-			galleryText = '<div class="galleryProgress">' + imagePosition + "/" + (imageCount-1)+ '</div>';
-			$("#galleryProgress").html(galleryText);
+	function imageCountLabel(){
+		if (imageCountShown){
+			$("#labelZone").append('<div id="imageCount">' + imagePosition + "/" + (imageCount-1)+ '</div>');
 		}
 		else{
-			$("#galleryProgress").html("");
-			$(".galleryProgress").remove();
+			$("#imageCount").remove();
 		}
-
-		handleShowImageName();
-		handleShowImageDetails();
 	}
 	
-	function toggleShowImageName(){
-		imageNameShown=!imageNameShown;
-		handleShowImageName();
-	}
-	
-	function handleShowImageName(){
-		$("#imageFilename").remove();
-		if (imageNameShown){
-			$("#galleryProgress").append("<div id=imageFilename>"+originalImageNames[imagePosition]+"</div>");
+	function imageNameLabel(){
+		if (imageFilenameShown){
+			$("#labelZone").append("<div id=imageFilename>"+originalImageNames[imagePosition]+"</div>");
 		}else{
 			$("#imageFilename").remove();
 		}
 	}
-	
-	function toggleShowImageDetails(){
-		imageDetailsShown=!imageDetailsShown;
-		handleShowImageDetails();
-	}
-	
-	function handleShowImageDetails(){
-		$("#imageDetails").remove();
-		if (imageDetailsShown){
+
+	function imageResolutionLabel(){
+		if (imageResolutionShown){
 			var h = $("#targetImg")[0].naturalHeight;
 			var w = $("#targetImg")[0].naturalWidth;
 			var size = h+"x"+w;
-			var mp = (h * w / 1000 / 1000).toFixed(1) + "m"
-			$("#galleryProgress").append("<div id=imageDetails>"+size+"<br>"+mp+"</div>");
+			$("#labelZone").append("<div id=imageResolution>"+size+"</div>");
 		}else{
-			$("#imageDetails").remove();
+			$("#imageResolution").remove();
 		}
 	}
 	
-	function toggleShowHelp(){
+	function imageMegapixelLabel(){
+		if (imageMegapixelsShown){
+			var h = $("#targetImg")[0].naturalHeight;
+			var w = $("#targetImg")[0].naturalWidth;
+			var mp = (h * w / 1000 / 1000).toFixed(1) + "m"
+			$("#labelZone").append("<div id=imageMegapixels>"+mp+"</div>");
+		}else{
+			$("#imageMegapixels").remove();
+		}
+	}
+	
+	function helpLabel(){
 		if (helpShown){
-			$("#4chanGalleryHelp").remove();
+			$("#labelZone").append("<div id=4chanGalleryHelp><ul><li>? for help<li>arrows to nav<li>page up down/home/end to nav fast<li>c to toggle count<li>n for show name<li>r to toggle image resolution<li>m to toggle megapixel<li style='color:red;'>These are also configurable permanently in options</div>");
 		}
 		else{
-			$("#galleryProgress").append("<div id=4chanGalleryHelp><ul><li>? for help<li>n for show name<li>arrows to nav<li>page up down/home/end to nav fast<li>c to toggle count display<li>n to toggle name display<li>d to toggle image resolution details</div>");
+			$("#4chanGalleryHelp").remove();
 		}
-		helpShown=!helpShown;
 	}
 	
 	function reDraw() {
 		imagePosition=Math.max(0, imagePosition);
 		imagePosition=Math.min(imagePosition, imageCount-1);
 		document.getElementById("targetImg").src = "http://"+images[imagePosition];
-		handleShowingLabels();
-		$("#galleryProgress").append("<span class='dots'> ...</span>");
-		//preloads.
+		redrawLabel();
+		$("#labelZone").append("<span class='dots'> ...</span>");
 		document.getElementById("targetImg_preload1").src = "http://"+images[imagePosition+1];
 		document.getElementById("targetImg_preload2").src = "http://"+images[imagePosition+2];
 		document.getElementById("targetImg_preload3").src = "http://"+images[imagePosition+3];
@@ -178,21 +215,30 @@ $(function() {
 				case 27: // esc
 					backToNormal();
 					break;
-				case 78: // n
-					skipRedraw=true;
-					toggleShowImageName();
-					break;
 				case 67: // c
 					skipRedraw=true;
-					toggleShowCount();
+					imageCountShown = !imageCountShown;
+					redrawLabel();
+					break;
+				case 78: // n
+					skipRedraw=true;
+					imageFilenameShown = !imageFilenameShown;
+					redrawLabel();
+					break;
+				case 82: // r
+					skipRedraw=true;
+					imageResolutionShown = !imageResolutionShown;
+					redrawLabel();
+					break;
+				case 77: // m
+					skipRedraw=true;
+					imageMegapixelsShown = !imageMegapixelsShown;
+					redrawLabel();
 					break;
 				case 191: // ? or /
 					skipRedraw=true;
-					toggleShowHelp();
-					break;
-				case 68: // d
-					skipRedraw=true;
-					toggleShowImageDetails();
+					helpShown = !helpShown;
+					redrawLabel();
 					break;
 				default: 
 					return;
