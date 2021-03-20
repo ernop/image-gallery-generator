@@ -2,7 +2,7 @@
   "manifest_version": 2,
   "name": "4Chan Gallery Viewer WG",
   "short_name": "GalleryView",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "description": "Adds gallery button to 4chan wg board thread views, with keyboard shortcuts",
   "permissions": ["contextMenus", "storage"],
   "browser_action": {

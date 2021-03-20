@@ -45,7 +45,6 @@ $(function() {
 			res = "image";
 		}
 		return res;
-		console.log("getting filetype for"+path+"=="+res);
 	}
 
 	function setup(){
@@ -78,7 +77,7 @@ $(function() {
 			$(".oldBody").hide();
 			$("body").css("padding","0");
 			if ($("#galleryViewWrapper").length==0){
-				$('body').prepend('<div id="galleryViewWrapper"><div id="labelZone" style="color:white;float:left;position:absolute;z-index:202;padding:5px;"></div><div id="blackBackground" style="z-index:100;position:absolute;display:flex;align-items:center;justify-content: left:0;top:0;display:none;width:100%;height:100%;background-color:black;position:absolute;z-index:200;"><img id="targetImg" style="max-width:99%;max-height:99%;display:none;" src=""/><video controls="true" autoplay="" id="targetVideo" style="max-width:99%;max-height:99%;display:none;" src=""/><img id="targetImg_preload1" style="display:none;" /><img id="targetImg_preload2" style="display:none;"/><img id="targetImg_preload3" style="display:none;"/><img id="targetImg_preload4" style="display:none;"/></div></div>');
+				$('body').prepend('<div id="galleryViewWrapper"><div id="labelZone" style="color:white;float:left;position:absolute;z-index:202;padding:5px;"></div><div id="blackBackground" style="z-index:100;position:absolute;display:flex;align-items:center;justify-content: left:0;top:0;display:none;width:100%;height:100%;background-color:black;position:absolute;z-index:200;"><img id="targetImg" style="max-width:99%;max-height:99%;display:none;" src="" /><img id="targetImg_preload1" style="display:none;" /><img id="targetImg_preload2" style="display:none;"/><img id="targetImg_preload3" style="display:none;"/><img id="targetImg_preload4" style="display:none;"/><video controls="true" autoplay="" id="targetVideo" style="max-width:99%;max-height:99%;display:none;" src="" /></div></div>');
 			}
 			$("#galleryViewWrapper").show();
 			$("#blackBackground").show();
@@ -119,9 +118,11 @@ $(function() {
 	
 	function backToNormal(){
 		$("#blackBackground").hide();
+		
 		$(document).unbind('keydown');
 		$("#galleryViewWrapper").hide();
 		$('.oldBody').show();
+		document.getElementById("targetVideo").pause();
 	}
 
 	function redrawLabel(){
@@ -185,7 +186,6 @@ $(function() {
 		imagePosition=Math.max(0, imagePosition);
 		imagePosition=Math.min(imagePosition, images.length-1);
 		var thisImageType = imageTypes[imagePosition];
-		console.log(thisImageType);
 		if (thisImageType=="video"){ //webms
 			$("#targetImg").hide();
 			$("#targetVideo").show();
@@ -233,6 +233,7 @@ $(function() {
 					imagePosition=imagePosition-5;
 					break;
 				case 27: // esc
+					skipRedraw=true;
 					backToNormal();
 					break;
 				case 67: // c
