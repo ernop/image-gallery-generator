@@ -2,7 +2,7 @@
   "manifest_version": 2,
   "name": "4Chan Gallery Viewer WG",
   "short_name": "GalleryView",
-  "version": "0.0.13",
+  "version": "0.0.17",
   "description": "Adds gallery button to 4chan wg board thread views, with keyboard shortcuts",
   "permissions": ["contextMenus", "storage"],
   "browser_action": {
@@ -10,10 +10,10 @@
   },
   "content_scripts": [ {
     "js": [ "jquery.min.js", "4changallery.js", "options.js" ],
-    "matches": [ 
-		"http://boards.4chan.org/*", 
+    "matches": [
+		"http://boards.4chan.org/*",
 		"https://boards.4chan.org/*",
-		"http://boards.4channel.org/*", 
+		"http://boards.4channel.org/*",
 		"https://boards.4channel.org/*"
 	]
   }],
