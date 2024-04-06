@@ -19,52 +19,41 @@ $(function() {
 	//how many images are preloaded.
 	var preloadCount=0;
 
-	//these are the defaults? but what use.
-
 	// settings, loaded from local storage
 	var imageCountShown = true;
 	var imageFilenameShown = true;
 	var imageResolutionShown = false;
 	var imageMegapixelsShown = false;
-
 	//show the count of preloaded images
 	var preloadLabelShown = true;
 	//show a dot if/when next image is loaded.
 	var anyImagePreloadedLabelShown = true;
-
 	var helpShown = false;
 
-	function loadStoredSettings(){
-		function onError(error) {
-		  console.log(`Error: ${error}`);
-		}
-
-		//save settings
-		function apply(item) {
-		  imageCountShown = item.data.showCount;
-		  imageFilenameShown = item.data.showFilename;
-		  imageResolutionShown = item.data.showResolution;
-		  imageMegapixelsShown = item.data.showMegapixels;
-		  preloadLabelShown=item.data.preloadLabelShown;
-		  anyImagePreloadedLabelShown=item.data.anyImagePreloadedLabelShown;
-		}
-
-		let getting = browser.storage.sync.get("data");
-		getting.then(apply, onError);
-	}
-
-	function getFileType(path){
-		var res = "";
-		if (path.substr(path.length - 5) == ".webm"){
-			res = "video";
-		}
-		else{
-			res = "image";
-		}
-		return res;
+	function getFileType(path) {
+		return path.match(/\.webm$/i) ? "video" : "image";
 	}
 
 	function setup(){
+		function loadStoredSettings(){
+			function onError(error) {
+			  console.log(`Error: ${error}`);
+			}
+
+			//save settings
+			function apply(item) {
+			  imageCountShown = item.data.showCount;
+			  imageFilenameShown = item.data.showFilename;
+			  imageResolutionShown = item.data.showResolution;
+			  imageMegapixelsShown = item.data.showMegapixels;
+			  preloadLabelShown=item.data.preloadLabelShown;
+			  anyImagePreloadedLabelShown=item.data.anyImagePreloadedLabelShown;
+			}
+
+			let getting = browser.storage.sync.get("data");
+			getting.then(apply, onError);
+		}
+
 		loadStoredSettings();
 
 		$(".fileText").each(function(index) {
@@ -82,15 +71,15 @@ $(function() {
 			originalImageNames.push(originalImageName);
 		});
 
+		//creating the button in the original raw html page which starts the gallery browser mode.
 		$('.navLinks').prepend('[<a href="#" class="galleryOn">Gallery Mode</a>] ');
 		$('body').wrapInner("<div class='oldBody'></div>");
 
-		//set these before galleryMode is enabled so that the initial experience is nice.
+		//set these before galleryMode is enabled so that the initial experience is nice. We add these undisplayed images and rotate their src variable so that the browser will preload them so that when you navigate, it will work.
 		$('body').prepend('<img id="targetImg_preload0" style="display:none;" /><img id="targetImg_preload1" style="display:none;" /><img id="targetImg_preload2" style="display:none;"/><img id="targetImg_preload3" style="display:none;"/><img id="targetImg_preload4" style="display:none;"/><img id="targetImg_preload5" style="display:none;"/>');
 
 		setPreloads(true);
 
-		//gallery load
 		$(".galleryOn").click(function() {
 			galleryOn=true;
 			//new document structure body > oldBody => body > (galleryViewWrapper)(oldBody)
@@ -115,27 +104,15 @@ $(function() {
 			e.stopPropagation();
 		});
 
+		//get out of gallery mode by clicking outside an image.
 		$("#blackBackground").click(function(e) {
 			backToNormal();
 		});
 
+		//redraw when resizing the entire browser window.
 		$(window).on('resize', function(){
 			reDraw();
 		});
-
-	}
-
-	//TODO why not reuse the same imgTarget_preloadN items?
-	function setupFirstPreloads(){
-		var ii = 0;
-		while (ii<5 && images.length>ii-1){
-			var thing = $('<img style="display:none;" name="preload"'+ii+'/>');
-			thing.attr("src", images[ii]);
-
-			$('body').prepend(thing);
-			ii++;
-		}
-
 
 	}
 
@@ -148,7 +125,7 @@ $(function() {
 		document.getElementById("targetVideo").pause();
 	}
 
-	//in-place redraw.
+	//in-place redraw all overlay labels.
 	function redrawLabel(){
 		if (!galleryOn){
 			return;
@@ -227,7 +204,7 @@ $(function() {
 
 	function helpLabel(){
 		if (helpShown){
-			return "<div id=4chanGalleryHelp><ul><li>? for help<li>arrows to nav<li>page up down/home/end to nav fast<li>c to toggle count<li>n for show name<li>r to toggle image resolution<li>m to toggle megapixel<li>p to toggle preloadCount display<li>a to toggle display of a dot when the next image is preloaded<li style='color:red;'>These are also configurable permanently in options</div>";
+			return "<div id=4chanGalleryHelp><ul style='background:grey;'><li>? - for help<li>arrows to nav<li>page up down/home/end - to nav fast<li>c - to toggle count<li>n - for show name<li>r - to toggle image resolution<li>m - to toggle megapixel<li>p - to toggle preloadCount display<li>a - to toggle display of a dot when the next image is preloaded<li>x - to hide all the UI<li>q -  to test the new AI image generation functions.<li style='color:red;'>These are also configurable permanently in options</ul></div>";
 		}
 		else{
 			return "";
@@ -239,6 +216,7 @@ $(function() {
 			return;
 		}
 		redrawCount++;
+
 		//I suppose this is okay.
 		preloadCount=0;
 
@@ -269,9 +247,12 @@ $(function() {
 
 	function setPreloads(calledFromOuter){
 		if (calledFromOuter){
-			//weird use case: this is initially called with imagePosition0 before the user even does anything.
+			//weird use case: this is initially called with imagePosition 0 before the user even does anything.
 			document.getElementById("targetImg_preload0").src = images[imagePosition];
 		}
+		//these cycle through but the browser can handle it.
+		//they also overflow the end of the list, but that's okay since such a src is just nothing
+		//TODO also preload the last one maybe? or the +5 one?
 		document.getElementById("targetImg_preload1").src = images[imagePosition+1];
 		document.getElementById("targetImg_preload2").src = images[imagePosition+2];
 		document.getElementById("targetImg_preload3").src = images[imagePosition+3];
@@ -288,11 +269,14 @@ $(function() {
 	// also: relatedCount is the redrawCount you should be valid for.
 	// since we recreate another layer of events on every redraw, rather than worrying about cleaning up old events we just invalidate them when they come back.
 	// this shouldn't be too much load.
+	// ah okay this is the thing which, using small text, shows the user the actual preload state of upcoming images.
 	function watchAndGo(n, relatedCount){
 		//trap this into this context and don't do anything if it's different.
 		// this is insufficient because of quick forward/back
 		var targetId = "#targetImg_preload"+n.toString();
 		var target = $(targetId);
+
+		//cancel earlier AJAX calls?
 		if (relatedCount!=redrawCount){
 			return;
 		}
@@ -327,10 +311,6 @@ $(function() {
 		}
 	}
 
-	//for debugging UI issues.
-	function sleep(ms) {
-	  return new Promise(resolve => setTimeout(resolve, ms));
-	}
 
 	function isImageDone(img){
 		if (!img[0].complete) {
@@ -412,7 +392,17 @@ $(function() {
 					preloadLabelShown = !preloadLabelShown;
 					redrawLabel();
 					break;
-				case 191: // / (?) for help
+				case 88: // x
+					skipRedraw=true;
+					preloadLabelShown = false;
+					anyImagePreloadedLabelShown=false;
+					imageMegapixelsShown=false;
+					imageResolutionShown=false;
+					imageFilenameShown=false;
+					imageCountShown=false;
+					redrawLabel();
+					break;
+				case 191: // "/" but same key as ? (show help)
 					skipRedraw=true;
 					helpShown = !helpShown;
 					redrawLabel();
