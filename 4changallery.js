@@ -72,7 +72,6 @@
         //~ $("#blackBackground").css("display","flex");
         $("#output").css("background","white");
         $("#output").css("color","grey");
-        //~ $("output").html("AAAEah");
         redraw();
         setKeyboardShortcuts();
     });

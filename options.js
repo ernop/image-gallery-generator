@@ -3,7 +3,7 @@
 
   function updateOutput(keyRelatedMessage, generalMessage){
     const apiKeyStatusElement = document.getElementById('apiKeyStatus');
-    const output = document.getElementById('outputA');
+    const output = document.getElementById('output');
     
     if (keyRelatedMessage!= null){
       apiKeyStatusElement .innerHTML = `${keyRelatedMessage}<hr>${apiKeyStatusElement.innerHTML}`;
@@ -21,17 +21,34 @@
   }
   
   //for slightly better checking on if we actually need to save settings.
-  function settingsAreDifferent(candidateSettings, lastSavedSettings) {
+  //also it's important to pull keys from candidate, since if the user is a returning, upgraded user with an old settings type object stored,
+  //then they may have a sparse settings object, so we want to compare them against the NEW one.
+  //hold on why don't i just adjust the name we save options into? well, first of all that would nuke any users settings every time we upgraded which would be very bad.
+  function settingsAreDifferentThanLastSaved(candidateSettings) {
     for (const key in candidateSettings) {
       if (candidateSettings[key] !== lastSavedSettings[key]) {
-        //~ updateOutput(null, `${candidateSettings[key]}!==${lastSavedSettings[key]} key=${key}`);
-        return true; // Found a difference, so return true
+        return true;
       }
     }
-    return false; // No differences found, so return false
+    return false;
   }
   
-  function pullSettings(){
+  //when you load settings, run it through this, that way if the setting you got from storage is missing a key and its value, it'll be filled in from default.
+  function applyDefaultSettings(settings) {
+    const defaultSettings = {
+      imageCountShown: true,
+      imageFilenameShown: true,
+      imageResolutionShown: true,
+      imageMegapixelsShown: false,
+      preloadLabelShown: false,
+      anyImagePreloadedLabelShown: false,
+      apiKey: ''  // Default to empty string if no key is stored
+    };
+
+    return Object.assign({}, defaultSettings, settings);
+  }
+  
+  function pullSettingsFromHtml(){
     const settings= {
       imageCountShown: document.querySelector("#imageCountShown").checked,
       imageFilenameShown: document.querySelector("#imageFilenameShown").checked,
@@ -45,10 +62,10 @@
   }
   
   function saveSettings() {
-    const settings=pullSettings();
+    const settings=pullSettingsFromHtml();
     if (!formatIsValid(settings.apiKey)) {
       document.getElementById('apiKeyStatus').textContent='';
-      updateOutput("Invalid API key format. but we're saving it anyway cause you never know whats gonna happen.", null);
+      updateOutput("Invalid API key format. But we're saving it anyway because they may change the required format, and it would be very evil of this extension to just overtly refuse to save an apikey even if it were later valid.", null);
     }
 
     browser.storage.sync.set({ settings: settings }).then(() => {
@@ -61,24 +78,29 @@
 
   function restoreSettings() {
     return browser.storage.sync.get("settings").then((result) => {
-      if (result.settings) {
+      //load the defaults then paste the ones gotten from storage over top of that.
+      const settingsToRestore = applyDefaultSettings(result.settings || {});
+      if (result.settings){
+        //because this is what we just loaded, even though it may not be what should be saved, since they may have been missing defaults.
         lastSavedSettings=result.settings;
-        document.querySelector("#imageCountShown").checked = result.settings.imageCountShown;
-        document.querySelector("#imageFilenameShown").checked = result.settings.imageFilenameShown;
-        document.querySelector("#imageResolutionShown").checked = result.settings.imageResolutionShown;
-        document.querySelector("#imageMegapixelsShown").checked = result.settings.imageMegapixelsShown;
-        document.querySelector("#preloadLabelShown").checked = result.settings.preloadLabelShown;
-        document.querySelector("#anyImagePreloadedLabelShown").checked = result.settings.anyImagePreloadedLabelShown;
-        document.querySelector("#apiKey").value = result.settings.apiKey;
+      }
         
-        //if we loaded an apikey, hide it by default. 
-        const apiKeyInput = document.getElementById('apiKey');
-        const toggleApiKeyMaskButton = document.getElementById('toggleApiKeyMask');
-        if (result.settings.apiKey!='' && result.settings.apiKey!= null && result.settings.apiKey!=undefined){
-          if (apiKeyInput.type === 'text') {
-            apiKeyInput.type = 'password';
-            toggleApiKeyMaskButton.textContent = 'Show';
-          }
+      //hmm what happens if i add more settings later, or change them. how does that fit with prior extension users who are upgrading?
+      document.querySelector("#imageCountShown").checked = settingsToRestore.imageCountShown;
+      document.querySelector("#imageFilenameShown").checked = settingsToRestore.imageFilenameShown;
+      document.querySelector("#imageResolutionShown").checked = settingsToRestore.imageResolutionShown;
+      document.querySelector("#imageMegapixelsShown").checked = settingsToRestore.imageMegapixelsShown;
+      document.querySelector("#preloadLabelShown").checked = settingsToRestore.preloadLabelShown;
+      document.querySelector("#anyImagePreloadedLabelShown").checked = settingsToRestore.anyImagePreloadedLabelShown;
+      document.querySelector("#apiKey").value = settingsToRestore.apiKey;
+      
+      //if we loaded an apikey, hide it by default. 
+      const apiKeyInput = document.getElementById('apiKey');
+      const toggleApiKeyMaskButton = document.getElementById('toggleApiKeyMask');
+      if (settingsToRestore.apiKey){
+        if (apiKeyInput.type === 'text') {
+          apiKeyInput.type = 'password';
+          toggleApiKeyMaskButton.textContent = 'Show';
         }
       } else {
         updateOutput(null, 'No settings loaded. using default.');
@@ -125,8 +147,8 @@
       const apiKeyStatusElement = document.getElementById('apiKeyStatus');
       document.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
         checkbox.addEventListener('change', () => {
-          const candidateSettings = pullSettings();
-          if (settingsAreDifferent(candidateSettings, lastSavedSettings)){
+          const candidateSettings = pullSettingsFromHtml();
+          if (settingsAreDifferentThanLastSaved(candidateSettings)){
             changed = true;
             document.querySelector("button[type='submit']").dataset.changed = 'true';
             document.querySelector("#saveNotice").dataset.changed = 'true';
@@ -139,8 +161,8 @@
       });
 
       apiKeyInput.addEventListener('input', function(e) {
-        const candidateSettings = pullSettings();
-        if (settingsAreDifferent(candidateSettings, lastSavedSettings)){
+        const candidateSettings = pullSettingsFromHtml();
+        if (settingsAreDifferentThanLastSaved(candidateSettings)){
           changed=true;
           document.querySelector("button[type='submit']").dataset.changed = 'true';
           document.querySelector("#saveNotice").dataset.changed = 'true';
@@ -198,7 +220,7 @@
           updateOutput(null, "failed to restore options."+ error)
           
           //default to what they are now at least.
-          lastSavedSettings=pullSettings();
+          lastSavedSettings=pullSettingsFromHtml();
       }
       
       document.querySelector("form").addEventListener("submit", function(){
@@ -206,7 +228,7 @@
             saveSettings();
             changed=false;
         } catch (error) {
-            updateOutput(null, "failed to save options." + error );
+            updateOutput(null, `failed to save options. ${error}`);
         }
       });
     });    

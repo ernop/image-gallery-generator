@@ -40,12 +40,12 @@
 			  <input type="text" id="apiKey" style="width:100%;" placeholder="enter API Key" />
             <button type="button" id="toggleApiKeyMask">Show</button>
           <span style="margin-top:5px;" id="apiKeyStatus"></span>
-          <button type=button id=testApiKeyButton>Test API Key </button>
+          <button type="button" id="testApiKeyButton">Test API Key </button>
 			  <p>If you click "test", we will make a free call to OpenAI to validate your API key works.  We just query the list of models.</p>
 			  If you don't know your key, or want to make one, visit here: <a href="https://platform.openai.com/settings/profile?tab=api-keys">openAI ApiKeys page</a>. It is not free, but it's pretty cheap to do lookups/describes etc.
 		  
-		<p /><button type="submit" type=button>Save</button><div id="saveNotice">You have unsaved changes. Save if you want.</div>
-		<br /><div id="outputA"></div>
+		<p /><button type="submit" type="button">Save</button><div id="saveNotice">You have unsaved changes. Save if you want.</div>
+		<br /><div id="output"></div>
     </form>
 	<script src="options.js"></script>
   </body>
