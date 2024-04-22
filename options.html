@@ -2,28 +2,10 @@
   <head>
     <title>Options configuration for 4changallery mode WG</title>
     <meta charset="utf-8">
+        <link rel="stylesheet" type="text/css" href="styles.css">
   </head>
-  <style>
-    input{
-      font-size:1.4em;
-    }
-    button{font-size:1.9em;}
-    button[type="submit"][data-changed="true"] {
-      background-color: #FBB;
-    }
 
-    #saveNotice[data-changed="false"] {
-      display:none;
-    }
-
-    #saveNotice[data-changed="true"] {
-      display:inline-block;
-      background-color: #fee;
-      border:5px dashed red;
-    }
-  </style>
-
-  <body >
+  <body id="galleryWGOptionsBody">
 <h1>Options:</h1>
 <h2>Label Options</h2>
     <form id="galleryOptions">
@@ -47,7 +29,7 @@
 		<p /><button type="submit" type="button">Save</button><div id="saveNotice">You have unsaved changes. Save if you want.</div>
 		<br /><div id="output"></div>
     </form>
-	<script src="options.js"></script>
+      <script src="configPageSettings.js"></script>
   </body>
 
 </html>

@@ -1,0 +1,27 @@
+/* the inner area I control*/
+#galleryViewWrapper {
+	color:purple;
+}
+
+/* The options page in configuration. */
+#galleryWGOptionsBody{
+	
+  input{
+    font-size:1.4em;
+  }
+  button{font-size:1.9em;}
+
+  button[type="submit"][data-changed="true"] {
+    background-color: #FBB;
+  }
+
+  #saveNotice[data-changed="false"] {
+    display:none;
+  }
+
+  #saveNotice[data-changed="true"] {
+    display:inline-block;
+    background-color: #fee;
+    border:5px dashed red;
+  }
+}

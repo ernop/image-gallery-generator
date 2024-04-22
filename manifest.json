@@ -14,7 +14,15 @@
     "default_icon": "icon.png"
   },
   "content_scripts": [ {
-    "js": [ "jquery.min.js", "4changallery.js", "options.js" ],
+    "js": [ "util.js", 
+      "aiModule.js", 
+      "labelsModule.js", 
+      "jquery.min.js", 
+      "keyboardModule.js", 
+      "settingsModule.js", 
+      "configPageSettings.js", 
+      "main.js"  ],
+    "css": ["styles.css"],
     "matches": [
 		"http://boards.4chan.org/*",
 		"https://boards.4chan.org/*",
