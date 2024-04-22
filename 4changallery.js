@@ -1,275 +1,147 @@
-$(function() {
-	//the human uploaded images.
-	var originalImageNames = [];
+(function() {
+  let helpShown=false;
 
-	//imageUrls
-	var images = [];
+  // Image list
+  let imageUrls = [];
+  let imageTypes = [];
+  let originalImageNames = [];
 
-	//for storing which ones are webms
-	var imageTypes = [];
+  // Current position in playback
+  let displayedImageIndex = 0;
 
-	//current position in playback.
-	var imagePosition = 0;
+  // Redraw count
+  let redrawCount = 0;
+  let preloadCount = 0;
 
-	//track the redraw count for this entire session; when it changes, completely invalidate all pending preload or other trackers.
-	var redrawCount = 0;
+  // Gallery mode
+  let galleryOn = false;
 
-	var galleryOn=false;
+  // Setup
+  function setup() {
+    // Load stored settings
+    loadSettings();
 
-	//how many images are preloaded.
-	var preloadCount=0;
+    // Initialize image list
+    $('.fileText').each(function(index) {
+      let path = $(this).find('a').attr('href');
+      imageUrls.push(path);
+      imageTypes[index] = getFileType(path);
 
-	// settings, loaded from local storage
-	var imageCountShown = true;
-	var imageFilenameShown = true;
-	var imageResolutionShown = false;
-	var imageMegapixelsShown = false;
-	//show the count of preloaded images
-	var preloadLabelShown = true;
-	//show a dot if/when next image is loaded.
-	var anyImagePreloadedLabelShown = true;
-	var helpShown = false;
 
-	function getFileType(path) {
-		return path.match(/\.webm$/i) ? "video" : "image";
-	}
+      // Find image name from the original upload
+      let originalImageName = $(this).find('a').attr('title');
+      if (originalImageName === undefined) {
+        originalImageName = $(this).find('a')[0].innerHTML;
+      }
+      originalImageNames.push(originalImageName);
+    });
 
-	function setup(){
-		function loadStoredSettings(){
-			function onError(error) {
-			  console.log(`Error: ${error}`);
-			}
+    // Create button for gallery mode
+    $('.navLinks').prepend('[<a href="#" class="galleryOn">Gallery Mode</a>] ');
+    $('body').wrapInner('<div class="oldBody"></div>');
 
-			//save settings
-			function apply(item) {
-			  imageCountShown = item.data.showCount;
-			  imageFilenameShown = item.data.showFilename;
-			  imageResolutionShown = item.data.showResolution;
-			  imageMegapixelsShown = item.data.showMegapixels;
-			  preloadLabelShown=item.data.preloadLabelShown;
-			  anyImagePreloadedLabelShown=item.data.anyImagePreloadedLabelShown;
-			}
+    //set these before galleryMode is enabled so that the initial experience is nice. We add these undisplayed images and rotate their src variable so that the browser will preload them so that when you navigate, it will work.
+    $('body').prepend('<img id="targetImg_preload0" style="display:none;" /><img id="targetImg_preload1" style="display:none;" /><img id="targetImg_preload2" style="display:none;"/><img id="targetImg_preload3" style="display:none;"/><img id="targetImg_preload4" style="display:none;"/><img id="targetImg_preload5" style="display:none;"/>');
 
-			let getting = browser.storage.sync.get("data");
-			getting.then(apply, onError);
-		}
+    setPreloads();
 
-		loadStoredSettings();
+    $(".galleryOn").click(function() {
+        galleryOn=true;
+        //new document structure body > oldBody => body > (galleryViewWrapper)(oldBody)
+        $(".oldBody").hide();
+        $("body").css("padding","0");
+        if ($("#galleryViewWrapper").length==0){
+            $('body').prepend(
+            `
+              <div id="galleryViewWrapper">
+                <div id="labelZone" style="color:white;float:left;position:absolute;z-index:202;padding:5px;"></div>
+                <div id="blackBackground" style="z-index:100;position:absolute;display:flex;align-items:center;justify-content: left:0;top:0;display:none;width:100%;height:100%;background-color:black;position:absolute;z-index:200;">
+                  <img id="targetImg" style="max-width:99%;max-height:99%;display:none;" src="" />
+                  <video controls="true" autoplay="" id="targetVideo" style="max-width:99%;max-height:99%;display:none;" src=""></video>
+                  <div id="output">outPUT</div>
+                </div>
+              </div>
+            `);
+        }
+        $("#galleryViewWrapper").show();
+        $("#blackBackground").show();
 
-		$(".fileText").each(function(index) {
-			var path= $(this).find("a").attr("href");
-			images.push(path);
-			imageTypes[index] = getFileType(path);
+        //these get nuked somehow
+        //~ $("#blackBackground").css("justify-content","center");
+        //~ $("#blackBackground").css("align-content","center");
+        //~ $("#blackBackground").css("display","flex");
+        $("#output").css("background","white");
+        $("#output").css("color","grey");
+        //~ $("output").html("AAAEah");
+        redraw();
+        setKeyboardShortcuts();
+    });
 
-			//find image name from the original upload - sometimes contains useful/interesting information
-			var originalImageName = $(this).find("a").attr("title");
+    $("#targetImg").click(function(e) {
+        // should only trigger on direct background clicks not image clicks.
+        e.stopPropagation();
+    });
 
-			//fallback to a.text
-			if (originalImageName==undefined){
-				originalImageName=$(this).find("a")[0].innerHTML;
-			}
-			originalImageNames.push(originalImageName);
-		});
+    //get out of gallery mode by clicking outside an image.
+    $("#blackBackground").click(function(e) {
+        backToNormal();
+    });
 
-		//creating the button in the original raw html page which starts the gallery browser mode.
-		$('.navLinks').prepend('[<a href="#" class="galleryOn">Gallery Mode</a>] ');
-		$('body').wrapInner("<div class='oldBody'></div>");
+    //redraw when resizing the entire browser window.
+    $(window).on('resize', function(){
+        redraw();
+    });
+  }
 
-		//set these before galleryMode is enabled so that the initial experience is nice. We add these undisplayed images and rotate their src variable so that the browser will preload them so that when you navigate, it will work.
-		$('body').prepend('<img id="targetImg_preload0" style="display:none;" /><img id="targetImg_preload1" style="display:none;" /><img id="targetImg_preload2" style="display:none;"/><img id="targetImg_preload3" style="display:none;"/><img id="targetImg_preload4" style="display:none;"/><img id="targetImg_preload5" style="display:none;"/>');
 
-		setPreloads(true);
+  // Back to normal
+  function backToNormal() {
+    galleryOn = false;
+    $("#blackBackground").hide();
+    $(document).unbind('keydown');
+    $(document).unbind('wheel');
+    $("#galleryViewWrapper").hide();
+    $('.oldBody').show();
+    document.getElementById("targetVideo").pause();
+  }
 
-		$(".galleryOn").click(function() {
-			galleryOn=true;
-			//new document structure body > oldBody => body > (galleryViewWrapper)(oldBody)
-			$(".oldBody").hide();
-			$("body").css("padding","0");
-			if ($("#galleryViewWrapper").length==0){
-				$('body').prepend('<div id="galleryViewWrapper"><div id="labelZone" style="color:white;float:left;position:absolute;z-index:202;padding:5px;"></div><div id="blackBackground" style="z-index:100;position:absolute;display:flex;align-items:center;justify-content: left:0;top:0;display:none;width:100%;height:100%;background-color:black;position:absolute;z-index:200;"><img id="targetImg" style="max-width:99%;max-height:99%;display:none;" src="" /><video controls="true" autoplay="" id="targetVideo" style="max-width:99%;max-height:99%;display:none;" src="" /></div></div>');
-			}
-			$("#galleryViewWrapper").show();
-			$("#blackBackground").show();
 
-			//these get nuked somehow
-			$("#blackBackground").css("justify-content","center");
-			$("#blackBackground").css("align-content","center");
-			$("#blackBackground").css("display","flex");
-			reDraw();
-			setKeyboardShortcuts();
-		});
 
-		$("#targetImg").click(function(e) {
-			// should only trigger on direct background clicks not image clicks.
-			e.stopPropagation();
-		});
+  function isNullOrEmpty(value){
+    return value===undefined || value===null ||  value==='' || Number.isNaN(value);
+  }
 
-		//get out of gallery mode by clicking outside an image.
-		$("#blackBackground").click(function(e) {
-			backToNormal();
-		});
+  // Get file type
+  function getFileType(path) {
+    return path.match(/\.webm$/i) ? "video" : "image";
+  }
 
-		//redraw when resizing the entire browser window.
-		$(window).on('resize', function(){
-			reDraw();
-		});
+  function setPreloads(){
+    var ii = 0;
+    while (ii< 5){
+      var candidateIndex = displayedImageIndex+ii;
+      var theUrl = imageUrls[candidateIndex];
+      if (isNullOrEmpty(theUrl)){
+        //~ alertt(`skipping assignation of value for ith value: ${ candidateIndex }.`);
+        break;
+      }
+      //~ alertt(`setting ${ii}th preloadTargetImage to: ${theUrl}`);
+      var preloaderElement=document.getElementById(`targetImg_preload${ii}`);
+      if (isNullOrEmpty(preloaderElement)){
+        alertt(`failed to load ${ii}th preloader`);
+        break;
+      }
 
-	}
+      preloaderElement.src=theUrl;
+      ii+=1;
+    }
 
-	function backToNormal(){
-		galleryOn=false;
-		$("#blackBackground").hide();
-		$(document).unbind('keydown');
-		$("#galleryViewWrapper").hide();
-		$('.oldBody').show();
-		document.getElementById("targetVideo").pause();
-	}
+    //check the preloaded image loading status and optionally display labels
+    //TODO with settings off this is not actually useful but very cheap anyway.
+    watchAndGo(1, redrawCount);
+  }
 
-	//in-place redraw all overlay labels.
-	function redrawLabel(){
-		if (!galleryOn){
-			return;
-		}
-		var res = "";
-		res+=imageCountLabel();
-		res+=imageNameLabel();
-		res+=imageResolutionLabel();
-		res+=imageMegapixelLabel();
-		res+=preloadLabel();
-		res+=anyImagePreloadedLabel();
-		res+=helpLabel();
-		$("#labelZone").html(res);
-	}
-
-	function imageCountLabel(){
-		if (imageCountShown){
-			return '<div id="imageCount">' + imagePosition + "/" + (images.length-1)+ '</div>';
-		}
-		else{
-			return "";
-		}
-	}
-
-	function imageNameLabel(){
-		if (imageFilenameShown){
-			return "<div id=imageFilename>"+originalImageNames[imagePosition]+"</div>";
-		}else{
-			return "";
-		}
-	}
-
-	function imageResolutionLabel(){
-		if (imageResolutionShown){
-			var h = $("#targetImg")[0].naturalHeight;
-			var w = $("#targetImg")[0].naturalWidth;
-			var size = w+"x"+h;
-			return "<div id=imageResolution>"+size+"</div>";
-		}else{
-			return "";
-		}
-	}
-
-	function imageMegapixelLabel(){
-		if (imageMegapixelsShown){
-			var h = $("#targetImg")[0].naturalHeight;
-			var w = $("#targetImg")[0].naturalWidth;
-			var mp = (w * h / 1000 / 1000).toFixed(1) + "m"
-			return "<div id=imageMegapixels>"+mp+"</div>";
-		}else{
-			return "";
-		}
-	}
-
-	function preloadLabel(){
-		if (preloadLabelShown){
-			return "<div id=preloadLabel>"+preloadCount+"</div>";
-		}else{
-			return "";
-		}
-	}
-
-	function anyImagePreloadedLabel(){
-		if (anyImagePreloadedLabelShown){
-			var text = "";
-			if (preloadCount>0){
-				text=".";
-			}else{
-
-			}
-			return "<div id=anyImagePreloadedLabelShown>"+text+"</div>";
-		}else{
-			return "";
-		}
-	}
-
-	function helpLabel(){
-		if (helpShown){
-			return "<div id=4chanGalleryHelp><ul style='background:grey;'><li>? - for help<li>arrows to nav<li>page up down/home/end - to nav fast<li>c - to toggle count<li>n - for show name<li>r - to toggle image resolution<li>m - to toggle megapixel<li>p - to toggle preloadCount display<li>a - to toggle display of a dot when the next image is preloaded<li>x - to hide all the UI<li>q -  to test the new AI image generation functions.<li style='color:red;'>These are also configurable permanently in options</ul></div>";
-		}
-		else{
-			return "";
-		}
-	}
-
-	function reDraw() {
-		if (!galleryOn){
-			return;
-		}
-		redrawCount++;
-
-		//I suppose this is okay.
-		preloadCount=0;
-
-		//fix under/overdone
-		imagePosition=Math.max(0, imagePosition);
-		imagePosition=Math.min(imagePosition, images.length-1);
-		var thisImageType = imageTypes[imagePosition];
-		if (thisImageType=="video"){ //webms
-			$("#targetImg").hide();
-			$("#targetVideo").show();
-			document.getElementById("targetVideo").src = images[imagePosition];
-		}
-		else{ //normal img tag can display these
-			$("#targetImg").show();
-			$("#targetVideo").hide();
-
-			document.getElementById("targetImg").src = images[imagePosition];
-
-			setPreloads();
-
-			//annoyance: if preloading is done, then navigation to next image is instant, but if not ready the old image hangs around for a while which is very jarring and bad.
-			//but if it's not done, then keyboard actions have no visible result until image is loaded.
-			redrawLabel();
-		}
-	}
-
-	//put the first N images into preloading.
-
-	function setPreloads(calledFromOuter){
-		if (calledFromOuter){
-			//weird use case: this is initially called with imagePosition 0 before the user even does anything.
-			document.getElementById("targetImg_preload0").src = images[imagePosition];
-		}
-		//these cycle through but the browser can handle it.
-		//they also overflow the end of the list, but that's okay since such a src is just nothing
-		//TODO also preload the last one maybe? or the +5 one?
-		document.getElementById("targetImg_preload1").src = images[imagePosition+1];
-		document.getElementById("targetImg_preload2").src = images[imagePosition+2];
-		document.getElementById("targetImg_preload3").src = images[imagePosition+3];
-		document.getElementById("targetImg_preload4").src = images[imagePosition+4];
-		document.getElementById("targetImg_preload5").src = images[imagePosition+5];
-
-		//check the preloaded image loading status and optionally display labels
-		//TODO with settings off this is not actually useful but very cheap anyway.
-		watchAndGo(1, redrawCount);
-	}
-
-	//main paths: if item 1 is done, start method on 2
-	// if it's not done, update label AND set a watcher on the next target which isn't done yet
-	// also: relatedCount is the redrawCount you should be valid for.
-	// since we recreate another layer of events on every redraw, rather than worrying about cleaning up old events we just invalidate them when they come back.
-	// this shouldn't be too much load.
-	// ah okay this is the thing which, using small text, shows the user the actual preload state of upcoming images.
+	// this is the thing which, using small text, shows the user the actual preload state of upcoming images.
 	function watchAndGo(n, relatedCount){
 		//trap this into this context and don't do anything if it's different.
 		// this is insufficient because of quick forward/back
@@ -278,41 +150,36 @@ $(function() {
 
 		//cancel earlier AJAX calls?
 		if (relatedCount!=redrawCount){
-			return;
+          return;
 		}
 		if (n>5){
-			redrawLabel();
-			return;
+		  alertt("GT5");
+		  redrawLabels();
+		  return;
 		}
 		if (isImageDone(target)){
-			preloadCount++;
-			watchAndGo(n+1, relatedCount)
+          preloadCount++;
+          watchAndGo(n+1, relatedCount)
 		} else {
-			target.unbind('load');
-			//most (all?) of the invalidations are irrelevant now.
-			target.one('load', function(e){
-				// say item 4 is not done yet; 3 is done.
-				// when item 4 does show up, update preload
-				// and start item 5 (which may already be complete or still tbc)
-				// ALSO we need to invalidate all these callbacks when the image update is done.
-				if (relatedCount!=redrawCount){
-					return;
-				}
-				preloadCount++;
-				watchAndGo(n+1, relatedCount);
-			});
+          target.unbind('load');
+          target.one('load', function(e){
+            if (relatedCount!=redrawCount){
+              return;
+            }
+            preloadCount++;
+            watchAndGo(n+1, relatedCount);
+          });
 
-			//trying to be careful here to prevent flashing
-			if (relatedCount!=redrawCount){
-				return;
-			}
+          //trying to be careful here to prevent flashing
+          if (relatedCount!=redrawCount){
+            return;
+          }
 
-			redrawLabel();
+          redrawLabels();
 		}
 	}
 
-
-	function isImageDone(img){
+    function isImageDone(img){
 		if (!img[0].complete) {
 			return false;
 		}
@@ -321,101 +188,347 @@ $(function() {
 		}
 		return true;
 	}
+  const settings = {
+    imageCountShown: true,
+    imageFilenameShown: true,
+    imageResolutionShown: false,
+    imageMegapixelsShown: false,
+    preloadLabelShown: true,
+    anyImagePreloadedLabelShown: true,
+    apiKey:""
+  };
 
-	function setKeyboardShortcuts(){
 
-		//mouse wheel nav.
-		document.addEventListener('wheel', function(e){
-			if (e.deltaY<0){
-				imagePosition-=1;
-			}else{
-				imagePosition+=1;
-			}
+  function loadSettings() {
+    browser.storage.sync.get("settings").then((result) => {
+      if (result.settings) {
+        Object.assign(settings, result.settings);
+      }
+    });
+  }
 
-			reDraw();
-			e.preventDefault();
+  function saveSettings() {
+    browser.storage.sync.set({ settings: settings });
+    alertt("Saved. settings.");
+    console.log(settings);
+  }
 
-		});
 
-		$(document).keydown(function(e) {
-			var skipRedraw = false;
-			switch(e.which) {
-				case 37: // left
-					imagePosition-=1;
-					break;
-				case 39: // right
-					imagePosition+=1;
-					break;
-				case 35: // end
-					imagePosition=images.length-1;
-					break;
-				case 36: // home
-					imagePosition=0;
-					break;
-				case 34: // pgdown
-					imagePosition=imagePosition+5;
-					break;
-				case 33: // pgup
-					imagePosition=imagePosition-5;
-					break;
-				case 27: // esc
-					skipRedraw=true;
-					backToNormal();
-					break;
-				case 67: // c
-					skipRedraw=true;
-					imageCountShown = !imageCountShown;
-					redrawLabel();
-					break;
-				case 78: // n
-					skipRedraw=true;
-					imageFilenameShown = !imageFilenameShown;
-					redrawLabel();
-					break;
-				case 82: // r
-					skipRedraw=true;
-					imageResolutionShown = !imageResolutionShown;
-					redrawLabel();
-					break;
-				case 77: // m
-					skipRedraw=true;
-					imageMegapixelsShown = !imageMegapixelsShown;
-					redrawLabel();
-					break;
-				case 65: // a
-					skipRedraw=true;
-					anyImagePreloadedLabelShown = !anyImagePreloadedLabelShown;
-					redrawLabel();
-					break;
-				case 80: // p
-					skipRedraw=true;
-					preloadLabelShown = !preloadLabelShown;
-					redrawLabel();
-					break;
-				case 88: // x
-					skipRedraw=true;
-					preloadLabelShown = false;
-					anyImagePreloadedLabelShown=false;
-					imageMegapixelsShown=false;
-					imageResolutionShown=false;
-					imageFilenameShown=false;
-					imageCountShown=false;
-					redrawLabel();
-					break;
-				case 191: // "/" but same key as ? (show help)
-					skipRedraw=true;
-					helpShown = !helpShown;
-					redrawLabel();
-					break;
-				default:
-					return;
-			}
-			if (!skipRedraw){
-				reDraw();
-			}
-			e.preventDefault();
-		});
-	}
+  function alertt(t){
+    console.log(`OutputAlert: ${t}`);
+    console.log(t);
+    $("#output").html(t);
+  }
 
-	setup();
-});
+  function redrawLabels() {
+    if (!galleryOn) return;
+    const labelHtml = labels.filter(label => label.condition()).map(label => createLabel(label.id, label.content));
+    $("#labelZone").html(labelHtml.join(''));
+  }
+
+  function createLabel(id, content) {
+    return `<div id="${id}">${content()}</div>`;
+  }
+
+  const labels = [
+    {
+      id: "imageCount",
+      condition: () => settings.imageCountShown,
+      content: () => `${displayedImageIndex} / ${imageUrls.length - 1}`
+    },
+    {
+      id: "imageFilename",
+      condition: () =>settings.imageFilenameShown,
+      content: () => originalImageNames[displayedImageIndex]
+    },
+    {
+      id: "imageResolution",
+      condition: () => settings.imageResolutionShown,
+      content: () => {
+        const img = $("#targetImg")[0];
+        return `${img.naturalWidth}x${img.naturalHeight}`;
+      }
+    },
+    {
+      id: "imageMegapixels",
+      condition: () => settings.imageMegapixelsShown,
+      content: () => {
+        const img = $("#targetImg")[0];
+        return `${(img.naturalWidth * img.naturalHeight / 1000 / 1000).toFixed(1)}m`;
+      }
+    },
+    {
+      id: "preloadLabel",
+      condition: () => settings.preloadLabelShown,
+      content: () => preloadCount
+    },
+    {
+      id: "anyImagePreloadedLabel",
+      condition: () => settings.anyImagePreloadedLabelShown,
+      content: () => preloadCount > 0? "." : ""
+    },
+    {
+      id: "ImageGalleryHelp",
+      condition: () => helpShown,
+      content: () => {
+        const helpText = [
+          "? - for help",
+          "arrows to nav",
+          "page up down/home/end - to nav fast",
+          "c - to toggle count",
+          "n - for show name",
+          "r - to toggle image resolution",
+          "m - to toggle megapixel",
+          "p - to toggle preloadCount display",
+          "a - to toggle display of a dot when the next image is preloaded",
+          "x - to hide all the UI",
+          "s - to test the new AI image generation functions. <<<==== HYPE",
+          "These are also configurable permanently in options"
+        ];
+        return `<div id="${this.id}"><ul style="background: grey;">${helpText.map(li => `<li>${li}</li>`).join("")}</ul></div>`;
+      }
+    }
+  ];
+
+  //if needed, advance to the next image (after some command which changed the alleged "current index" for example.
+  function redraw() {
+    if (!galleryOn){
+      return;
+    }
+    redrawCount++;
+
+    //I suppose this is okay.
+    preloadCount=0;
+
+    //fix under/overdone
+    displayedImageIndex=Math.max(0, displayedImageIndex);
+    displayedImageIndex=Math.min(displayedImageIndex, imageUrls.length-1);
+    var thisImageType = imageTypes[displayedImageIndex];
+    if (thisImageType=="video"){ //webms
+      $("#targetImg").hide();
+      $("#targetVideo").show();
+      document.getElementById("targetVideo").src = imageUrls[displayedImageIndex];
+    }
+    else{ //normal img tag can display these
+      $("#targetImg").show();
+      $("#targetVideo").hide();
+
+      //~ alertt(`setting position to: ${imageUrls[displayedImageIndex]}`);
+      document.getElementById("targetImg").src = imageUrls[displayedImageIndex];
+
+      setPreloads();
+
+      //annoyance: if preloading is done, then navigation to next image is instant, but if not ready the old image hangs around for a while which is very jarring and bad.
+      //but if it's not done, then keyboard actions have no visible result until image is loaded.
+      redrawLabels();
+    }
+  }
+
+  const keyboardShortcuts = [
+  {
+    keycodes: [27], // esc
+    action: () => backToNormal(),
+    type: 'exit',
+  },
+  {
+    keycodes: [33], // pgup
+    action: () => displayedImageIndex -= 5,
+    type: 'image',
+  },
+  {
+    keycodes: [34], // pgdown
+    action: () => displayedImageIndex += 5,
+    type: 'image',
+  },
+  {
+    keycodes: [35], // end
+    action: () => displayedImageIndex = imageUrls.length - 1,
+    type: 'image',
+  },
+  {
+    keycodes: [36], // home
+    action: () => displayedImageIndex = 0,
+    type: 'image',
+  },
+  {
+    keycodes: [37, 38], // left, up
+    action: () => displayedImageIndex -= 1,
+    type: 'image',
+  },
+  {
+    keycodes: [39, 40], // right, down
+    action: () => displayedImageIndex += 1,
+    type: 'image',
+  },
+  {
+    keycodes: [65], // a
+    action: () => settings.anyImagePreloadedLabelShown =!settings.anyImagePreloadedLabelShown,
+    type: 'labels',
+  },
+  {
+    keycodes: [67], // c
+    action: () => settings.imageCountShown =!settings.imageCountShown,
+    type: 'labels',
+  },
+  {
+    keycodes: [77], // m
+    action: () => settings.imageMegapixelsShown =!settings.imageMegapixelsShown,
+    type: 'labels',
+  },
+  {
+    keycodes: [78], // n
+    action: () => settings.imageFilenameShown =!settings.imageFilenameShown,
+    type: 'labels',
+  },
+  {
+    keycodes: [80], // p
+    action: () => settings.preloadLabelShown =!settings.preloadLabelShown,
+    type: 'labels',
+  },
+  {
+    keycodes: [82], // r
+    action: () => settings.imageResolutionShown =!settings.imageResolutionShown,
+    type: 'labels',
+  },
+  {
+    keycodes: [83], // s
+    action: () => doAi(),
+    type: 'ai',
+  },
+  {
+    keycodes: [88], // x
+    action: () => {
+      settings.preloadLabelShown = false;
+      settings.anyImagePreloadedLabelShown = false;
+      settings.imageMegapixelsShown = false;
+      settings.imageResolutionShown = false;
+      settings.imageFilenameShown = false;
+      settings.imageCountShown = false;
+      helpShown = false;
+    },
+    type: 'labels',
+  },
+  {
+    keycodes: [191], // / or?
+    action: () => helpShown =!helpShown,
+    type: 'labels',
+  },
+];
+
+  const handleShortcut = function(e) {
+    const keyCode = e.which;
+    for (const shortcut of keyboardShortcuts) {
+      if (shortcut.keycodes.includes(keyCode)) {
+        shortcut.action();
+        switch (shortcut.type) {
+          case 'image':
+            redraw();
+            break;
+          case 'labels':
+            redrawLabels();
+            saveSettings();
+            break;
+          case 'ai':
+            // AI lookup code here
+            break;
+          case 'exit':
+            // exit code here
+            break;
+        }
+        e.preventDefault();
+      }
+    }
+  };
+
+  function formatIsValid(apiKey) {
+    const apiKeyRegex = /^sk-[a-zA-Z0-9]{48}$/;
+    return apiKeyRegex.test(apiKey);
+  }
+
+
+  // Send image URL to API endpoint for description
+  function doAi(){
+    alertt("AI");
+
+    if (!formatIsValid(settings.apiKey)){
+      alert("apikey format is invalid.");
+    }
+    let apiUrl = "https://api.openai.com/v1/chat/completions";
+    let imageUrl = imageUrls[displayedImageIndex];
+    imageUrl="http:"+imageUrl;
+
+    // API request options
+    // apiKey is set above, privately.
+
+    let apiOptions = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${settings.apiKey}`
+      }
+    };
+
+    let requestBody =
+      {"model": "gpt-4-turbo",
+
+        "messages": [
+          {
+            "role": "system",
+            "content":
+              [
+                {
+                  "type": "text",
+                  "text": "You are a professional artist, photographer, and award-winning poet and novelist.  Your goal is to describe what is in this image using beautiful, creative, precise language. Include details about the environment, subjects, people, style, format, specific age and origin of any people. If there is text in the image, transcribe it in quotes. You see exquisite detail and overall composition, color, style, layout choices with a master's eye and describe them intimately and in great detail, while still easily giving an overall image summary precisely."
+                }
+              ]
+          },
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Describe the image."
+              },
+              {
+                "type": "image_url",
+                "image_url": {
+                  "url":  imageUrl
+                }
+              }
+            ]
+          }
+        ],
+        "max_tokens": 1600
+      };
+    apiOptions.body=JSON.stringify(requestBody);
+    fetch(apiUrl, apiOptions)
+      .then(response => response.json())
+      .then(data => {
+        alertt(data);
+        let description = data.choices[0].text;
+        alertt(description);
+        // Display description
+        // ...
+      })
+      .catch(error => {
+        console.error("eError", error);
+      })
+  }
+
+
+  function setKeyboardShortcuts(){
+    $(document).keydown(handleShortcut);
+    document.addEventListener('wheel', function(e){
+      if (e.deltaY < 0) {
+        displayedImageIndex -= 1;
+      } else {
+        displayedImageIndex += 1;
+      }
+      redraw();
+      e.preventDefault();
+    });
+  }
+
+  // Initialize
+  setup();
+})();
