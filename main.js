@@ -12,23 +12,14 @@
     // Current position in playback
     'displayedImageIndex':0,
     'redrawCount':0,
+    'relatedCount':0,
     preloadCount:0,
     galleryOn:false,
-    settings: settingsModule.loadSettings()
   }
   
-  const settings = {
-    imageCountShown: true,
-    imageFilenameShown: true,
-    imageResolutionShown: false,
-    imageMegapixelsShown: false,
-    preloadLabelShown: true,
-    anyImagePreloadedLabelShown: true,
-    apiKey:""
-  };
-  
-  function setup() {
+  async function setup() {
     // Load stored settings
+    await settingsModule.loadSettings();
     readStuffFromPage();
     setPreloads();
     $(".galleryOn").click(function() {
@@ -136,14 +127,14 @@
   }
 
 	// this is the thing which, using small text, shows the user the actual preload state of upcoming images.
-	function watchAndGo(n, relatedCount){
+	function watchAndGo(n, rc){
 		//trap this into this context and don't do anything if it's different.
 		// this is insufficient because of quick forward/back
 		var targetId = "#targetImg_preload"+n.toString();
 		var target = $(targetId);
 
 		//cancel earlier AJAX calls?
-		if (relatedCount != globalState.redrawCount){
+		if (rc != globalState.redrawCount){
       return;
 		}
 		if (n>5){
@@ -152,19 +143,19 @@
 		}
 		if (util.isImageDone(target)){
       globalState.preloadCount++;
-      watchAndGo(n+1, relatedCount)
+      watchAndGo(n+1, rc)
 		} else {
       target.unbind('load');
       target.one('load', function(e){
-        if (relatedCount!=redrawCount){
+        if (rc!=globalState.redrawCount){
           return;
         }
         globalState.preloadCount++;
-        watchAndGo(n+1, relatedCount);
+        watchAndGo(n+1, rc);
       });
 
       //trying to be careful here to prevent flashing
-      if (relatedCount!=globalState.redrawCount){
+      if (rc!=globalState.redrawCount){
         return;
       }
 
@@ -184,19 +175,19 @@
     globalState.preloadCount=0;
 
     //fix under/overdone
-    displayedImageIndex=Math.max(0, displayedImageIndex);
-    displayedImageIndex=Math.min(displayedImageIndex, imageUrls.length-1);
-    var thisImageType = imageTypes[displayedImageIndex];
+    globalState.displayedImageIndex=Math.max(0, globalState.displayedImageIndex);
+    globalState.displayedImageIndex=Math.min(globalState.displayedImageIndex, globalState.imageUrls.length-1);
+    var thisImageType = globalState.imageTypes[globalState.displayedImageIndex];
     if (thisImageType=="video"){ //webms
       $("#targetImg").hide();
       $("#targetVideo").show();
-      document.getElementById("targetVideo").src = imageUrls[displayedImageIndex];
+      document.getElementById("targetVideo").src = imageUrls[globalState.displayedImageIndex];
     }
     else{ //normal img tag can display these
       $("#targetImg").show();
       $("#targetVideo").hide();
 
-      document.getElementById("targetImg").src = imageUrls[displayedImageIndex];
+      document.getElementById("targetImg").src = globalState.imageUrls[globalState.displayedImageIndex];
 
       setPreloads();
 
@@ -213,12 +204,13 @@
   
   function redrawLabels() {
     if (!globalState.galleryOn) return;
-    const labelHtml = labels.filter(label => label.condition(settings)).map(label => createLabel(label.id, label.content));
+    const labelHtml = labels.filter(label => label.condition(settingsModule.settings, globalState))
+      .map(label => createLabel(label.id, label.content));
     $("#labelZone").html(labelHtml.join(''));
   }
 
   function createLabel(id, content) {
-    return `<div id="${id}">${content()}</div>`;
+    return `<div id="${id}">${content(globalState)}</div>`;
   }
 
   const handleShortcut = function(e) {
@@ -227,24 +219,24 @@
       if (shortcut.keycodes.includes(keyCode)) {
         switch (shortcut.type) {
           case 'image':
-            displayedImageIndex = shortcut.action(displayedImageIndex); //confirm they do pass by value here?
+            shortcut.action(settingsModule.settings); //confirm they do pass by value here?
             redraw();
             break;
           case 'labels':
-            shortcut.action(settings); //directly modifies settings
+            shortcut.action(settingsModule.settings); //directly modifies settings
             redrawLabels();
-            saveSettings();
+            settingsModule.saveSettings(false);
             break;
           case 'clearLabels':
-            shortcut.action(settings);
+            shortcut.action(settingsModule.settings);
             redrawLabels();
-            helpShown = false;
-            saveSettings();
+            globalState.helpShown = false;
+            settingsModule.saveSettings(false);
           case 'ai':
             ai.DescribeImageAI();
             break;
           case 'help':
-            helpShown =!helpShown;
+            globalState.helpShown =!globalState.helpShown;
             redrawLabels();
           case 'exit':
             // exit code here
@@ -260,9 +252,9 @@
     $(document).keydown(handleShortcut);
     document.addEventListener('wheel', function(e){
       if (e.deltaY < 0) {
-        displayedImageIndex -= 1;
+        globalState.displayedImageIndex -= 1;
       } else {
-        displayedImageIndex += 1;
+        globalState.displayedImageIndex += 1;
       }
       redraw();
       e.preventDefault();

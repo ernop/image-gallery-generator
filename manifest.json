@@ -20,7 +20,6 @@
       "jquery.min.js", 
       "keyboardModule.js", 
       "settingsModule.js", 
-      "configPageSettings.js", 
       "main.js"  ],
     "css": ["styles.css"],
     "matches": [

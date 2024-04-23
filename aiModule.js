@@ -3,7 +3,7 @@ let ai = {
   DescribeImageAI: function(url){
     displayInternalError("AI");
 
-    if (!apiKeyFormatIsValid(settings.apiKey)){
+    if (!util.apiKeyFormatIsValid(settings.apiKey)){
       alert("apikey format is invalid.");
     }
     let apiUrl = "https://api.openai.com/v1/chat/completions";

@@ -1,35 +1,37 @@
+<!DOCTYPE html>
 <html>
   <head>
-    <title>Options configuration for 4changallery mode WG</title>
+    <title>Options configuration for gallery mode WG</title>
     <meta charset="utf-8">
-        <link rel="stylesheet" type="text/css" href="styles.css">
+    <link rel="stylesheet" type="text/css" href="styles.css">
   </head>
 
   <body id="galleryWGOptionsBody">
-<h1>Options:</h1>
-<h2>Label Options</h2>
+    <h1>Options:</h1>
+    <h2>Labels</h2>
     <form id="galleryOptions">
-        <label><input type="checkbox" id="imageCountShown">Show Count</label>
-		<br /><label><input type="checkbox" id="imageFilenameShown">Show Filename</label>
-		<br /><label><input type="checkbox" id="imageResolutionShown">Show Resolution</label>
-		<br /><label><input type="checkbox" id="imageMegapixelsShown">Show Megapixels</label>
-		<br /><label><input type="checkbox" id="preloadLabelShown">Show the count of preloaded images</label>
-		<br /><label><input type="checkbox" id="anyImagePreloadedLabelShown">Show a dot when the next image is loaded</label>
-     <p />Note: these options used to not work. They work now (as of v0.0.18)
-    <h2>AI stuff:</h2>
-        This extension is expanding to let you input your openAI key (or other image-generation apis, if they exist in the future) and do various things with it, such as describing &amp; making your own versions of images you find. It's purely optional.
-         <p /><h3>OpenAI API Key</h3>
-			  <input type="text" id="apiKey" style="width:100%;" placeholder="enter API Key" />
-            <button type="button" id="toggleApiKeyMask">Show</button>
-          <span style="margin-top:5px;" id="apiKeyStatus"></span>
-          <button type="button" id="testApiKeyButton">Test API Key </button>
-			  <p>If you click "test", we will make a free call to OpenAI to validate your API key works.  We just query the list of models.</p>
-			  If you don't know your key, or want to make one, visit here: <a href="https://platform.openai.com/settings/profile?tab=api-keys">openAI ApiKeys page</a>. It is not free, but it's pretty cheap to do lookups/describes etc.
-		  
-		<p /><button type="submit" type="button">Save</button><div id="saveNotice">You have unsaved changes. Save if you want.</div>
-		<br /><div id="output"></div>
+      <label><input type="checkbox" id="imageCountShown">Show Count</label>
+      <br /><label><input type="checkbox" id="imageFilenameShown">Show Filename</label>
+      <br /><label><input type="checkbox" id="imageResolutionShown">Show Resolution</label>
+      <br /><label><input type="checkbox" id="imageMegapixelsShown">Show Megapixels</label>
+      <br /><label><input type="checkbox" id="preloadLabelShown">Show the count of preloaded images</label>
+      <br /><label><input type="checkbox" id="anyImagePreloadedLabelShown">Show a dot when the next image is loaded</label>
+       <p />Note: these options used to not work. They work now (as of v0.0.18)
+      <h2>AI Images</h2>
+          This extension is expanding to let you input your openAI key (or other image-generation apis, if they exist in the future) and do various things with it, such as describing &amp; making your own versions of images you find. It's purely optional.
+           <p /><h3>OpenAI API Key</h3>
+          <input type="text" id="apiKey" style="width:100%;" placeholder="enter API Key" />
+              <button type="button" id="toggleApiKeyMask">Show</button>
+            <span style="margin-top:5px;" id="apiKeyStatus"></span>
+            <button type="button" id="testApiKeyButton">Test API Key </button>
+          <p>If you click "test", we will make a free call to OpenAI to validate your API key works.  We just query the list of models.</p>
+          If you don't know your key, or want to make one, visit here: <a href="https://platform.openai.com/settings/profile?tab=api-keys">openAI ApiKeys page</a>. It is not free, but it's pretty cheap to do lookups/describes etc.
+        
+      <p /><button type="submit">Save</button><div id="saveNotice">You have unsaved changes. Save if you want.</div>
+      <br /><div id="output"></div>
     </form>
-      <script src="configPageSettings.js"></script>
+    <script src="util.js"></script>
+    <script src="settingsModule.js"></script>
+    
   </body>
-
 </html>

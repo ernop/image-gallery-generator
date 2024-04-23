@@ -15,13 +15,13 @@
     background-color: #FBB;
   }
 
+	#saveNotice{
+		display:inline-block;
+		background-color: #fee;
+		border:5px dashed red;
+	}
+
   #saveNotice[data-changed="false"] {
     display:none;
-  }
-
-  #saveNotice[data-changed="true"] {
-    display:inline-block;
-    background-color: #fee;
-    border:5px dashed red;
   }
 }

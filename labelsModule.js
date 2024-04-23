@@ -1,44 +1,44 @@
 const labels = [
     {
       id: "imageCount",
-      condition: (settings) => settings.imageCountShown,
-      content: () => `${displayedImageIndex} / ${imageUrls.length - 1}`
+      condition: (settings, globalState) => settings.imageCountShown,
+      content: (globalState) => `${globalState.displayedImageIndex} / ${globalState.imageUrls.length - 1}`
     },
     {
       id: "imageFilename",
-      condition: (settings) =>settings.imageFilenameShown,
-      content: () => originalImageNames[displayedImageIndex]
+      condition: (settings, globalState) =>settings.imageFilenameShown,
+      content: (globalState) => globalState.originalImageNames[globalState.displayedImageIndex]
     },
     {
       id: "imageResolution",
-      condition: (settings) => settings.imageResolutionShown,
-      content: () => {
+      condition: (settings, globalState) => settings.imageResolutionShown,
+      content: (globalState) => {
         const img = $("#targetImg")[0];
         return `${img.naturalWidth}x${img.naturalHeight}`;
       }
     },
     {
       id: "imageMegapixels",
-      condition: (settings) => settings.imageMegapixelsShown,
-      content: () => {
+      condition: (settings, globalState) => settings.imageMegapixelsShown,
+      content: (globalState) => {
         const img = $("#targetImg")[0];
         return `${(img.naturalWidth * img.naturalHeight / 1000 / 1000).toFixed(1)}m`;
       }
     },
     {
       id: "preloadLabel",
-      condition: (settings) => settings.preloadLabelShown,
-      content: () => preloadCount
+      condition: (settings, globalState) => settings.preloadLabelShown,
+      content: (globalState) => preloadCount
     },
     {
       id: "anyImagePreloadedLabel",
-      condition: (settings) => settings.anyImagePreloadedLabelShown,
-      content: () => preloadCount > 0? "." : ""
+      condition: (settings, globalState) => settings.anyImagePreloadedLabelShown,
+      content: (globalState) => preloadCount > 0? "." : ""
     },
     {
       id: "ImageGalleryHelp",
-      condition: () => helpShown,
-      content: () => {
+      condition: (settings, globalState) => globalState.helpShown,
+      content: (globalState) => {
         const helpText = [
           "? - for help",
           "arrows to nav",

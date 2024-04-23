@@ -1,32 +1,43 @@
-let settingsModule={
+let settingsModule = {
   lastSavedSettings: null,
-  activeSettings:{},
+  settings:{}, //these are the ones who should be consulted all the time and modified.
   changed:false,
-  loadSettings:async function() {
-    browser.storage.sync.get("settings").then((result) => {
-      if (result.settings) {
-        Object.assign(this.activeSettings, result.settings);
-      }
-    });
-  },
-  saveSettings: function(areOnOptionsPage) {
-    let toSaveSettings = this.applyDefaultSettings(this.activeSettings);
-    this.lastSavedSettings=toSaveSettings;
-    
-    if (!formatIsValid(toSaveSettings.apiKey)) {
-      document.getElementById('apiKeyStatus').textContent='';
-      optionsHtmlPageInfo("Invalid API key format. But we're saving it anyway because they may change the required format, and it would be very evil of this extension to just overtly refuse to save an apikey even if it were later valid.", null);
-    }
-    if (areOnOptionsPage){
-      browser.storage.sync.set({ settings: toSaveSettings }).then(() => {
-          optionsHtmlPageInfo(null, "Settings saved okay.");
-          lastSavedSettings= toSaveSettings
-      }).catch((error) => {
-          optionsHtmlPageInfo(null, "Error saving settings:" + error);
+  onSettingPage:false, //just a tracker if we are being called via this other in-browser configuration method.
+  loadSettings:async function() { //this populates settings, called at startup.
+    settingsModule.optionsHtmlPageInfo(null,"loading settings again.");
+    try{
+      await browser.storage.sync.get("settings").then((result) => {
+        if (result.settings) {
+          Object.assign(settingsModule.settings, result.settings);
+        }else{
+          settingsModule.optionsHtmlPageInfo(null,"got no settings.'");
+        }
       });
-    }else{
-      browser.storage.sync.set({ settings: toSaveSettings });
+    }catch{
+      let defaultGuy=settingsModule.privateApplyDefaultSettings({});
+      settingsModule.settings=defaultGuy;
+      console.log("fall back to default.");
     }
+  },
+  
+  saveSettings: function(onSettingsConfigPage) {
+    settingsModule.onSettingsConfigPage=onSettingsConfigPage;
+    
+    let toSaveSettings 
+    if (onSettingsConfigPage){
+      toSaveSettings = settingsModule.pullSettingsFromHtml();
+    }else{
+      toSaveSettings = settingsModule.settings;
+    }
+    
+    if (!util.apiKeyFormatIsValid(toSaveSettings.apiKey) && toSaveSettings.apiKey!='' && toSaveSettings.apiKey!=undefined) {
+      settingsModule.optionsHtmlPageInfo("Invalid API key format. But we're saving it anyway because they may change the required format, and it would be very evil of this extension to just overtly refuse to save an apikey even if it were later valid.", null);
+    }
+    
+    browser.storage.sync.set({ settings: toSaveSettings }).then(() => {
+        settingsModule.optionsHtmlPageInfo(null, "Settings saved okay.");
+        settingsModule.lastSavedSettings=toSaveSettings;
+    })
   },
 
   //a function to update the output area of the options.html page during config.
@@ -35,11 +46,17 @@ let settingsModule={
     const output = document.getElementById('output');
     
     if (keyRelatedMessage!= null){
-      apiKeyStatusElement.innerHTML = `${keyRelatedMessage}<hr>${apiKeyStatusElement.innerHTML}`;
+      if (settingsModule.onSettingPage){
+        apiKeyStatusElement.innerHTML = `${keyRelatedMessage}<hr>${apiKeyStatusElement.innerHTML}`;
+      }
+      console.log(keyRelatedMessage);
     }
     
     if (generalMessage!= null){
-      output.innerHTML = `${generalMessage}<hr>${output.innerHTML}`;
+      if (settingsModule.onSettingPage){
+        output.innerHTML = `${generalMessage}<hr>${output.innerHTML}`;
+      }
+      console.log(generalMessage);
     }
   },
    
@@ -49,7 +66,9 @@ let settingsModule={
   //hold on why don't i just adjust the name we save options into? well, first of all that would nuke any users settings every time we upgraded which would be very bad.
   settingsAreDifferentThanLastSaved: function(candidateSettings) {
     for (const key in candidateSettings) {
-      if (candidateSettings[key] !== lastSavedSettings[key]) {
+      //~ console.log(candidateSettings);
+      //~ console.log(key);
+      if (candidateSettings[key] !== settingsModule.lastSavedSettings[key]) {
         return true;
       }
     }
@@ -84,15 +103,12 @@ let settingsModule={
     return settings;
   },
   
-  loadSettingsFromBrowserMemoryIntoConfigPage:async function() {
-    let settings = await this.loadSettings();
-    if (settings){
+  applySettingsToConfigurationPage: function() {
+    if (settingsModule.settings && settingsModule.settings!={}){
       //because this is what we just loaded, even though it may not be what should be saved, since they may have been missing defaults.
-      lastSavedSettings=result.settings;
+      settingsModule.lastSavedSettings=settingsModule.settings;
     }
-    
-    const settingsToRestore = this.privateApplyDefaultSettings(settings.settings || {});
-    
+    const settingsToRestore = settingsModule.privateApplyDefaultSettings(settingsModule.settings || {});
     //hmm what happens if i add more settings later, or change them. how does that fit with prior extension users who are upgrading?
     document.querySelector("#imageCountShown").checked = settingsToRestore.imageCountShown;
     document.querySelector("#imageFilenameShown").checked = settingsToRestore.imageFilenameShown;
@@ -110,90 +126,65 @@ let settingsModule={
         apiKeyInput.type = 'password';
         toggleApiKeyMaskButton.textContent = 'Show';
       }
-    } else {
-      optionsHtmlPageInfo(null, 'No settings loaded. using default.');
     }
   },
 
-  apiKeyIsValidWithOpenAI: async function (apiKey){
-    let apiUrl = "https://api.openai.com/v1/models";
-    let apiOptions = {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      }
-    };
-
-    try{
-      const response = await fetch(apiUrl, apiOptions)
-      var responseJson = await response.json();
-      if (response.ok){
-        return [true, responseJson.data.length];
-      }else{
-        return [false, responseJson.error.message];
-      }
-    }catch (error) {
-      return [false, error];
+  setSettingsAsHavingUnsavedChanges: function(val){
+    console.log("setSettingsAsHavingUnsavedChanges:", val);
+    settingsModule.changed = val;
+    var ss = '';
+    //ah, shitty js
+    if (val==true){
+      ss="true";
+    }else {
+      ss="false";
     }
-    return false,'xxx';
-  },
-  
-  setSettingsAreChangedStatus: function(val){
-    console.log("settings are:"+toString(val));
-    this.changed = val;
-    document.querySelector("button[type='submit']").dataset.changed = toString(val);
-    document.querySelector("#saveNotice").dataset.changed = toString(val);
+    document.querySelector("button[type='submit']").dataset.changed = ss;
+    document.querySelector("#saveNotice").dataset.changed = ss;
   },
   
   setupOptionsHtmlPage:async function(){
-    console.log("Q");
-    document.addEventListener("DOMContentLoaded", async function() {
-      console.log("DOMContentLoaded");
+    //load the settings first.
+    await settingsModule.loadSettings();
+    console.log("setting up options page, loaded settings (internal):");
+    //~ console.log(settingsModule.settings);
+    
+    //~ document.addEventListener("DOMContentLoaded", async function() {
       //set up monitoring for format of entered apikeys.
       const apiKeyInput = document.getElementById('apiKey');
       const apiKeyStatusElement = document.getElementById('apiKeyStatus');
       document.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
         checkbox.addEventListener('change', () => {
-          const candidateSettings = pullSettingsFromHtml();
-          setSettingsAreChangedStatus(settingsAreDifferentThanLastSaved(candidateSettings));
+          const candidateSettings = settingsModule.pullSettingsFromHtml();
+          settingsModule.setSettingsAsHavingUnsavedChanges(settingsModule.settingsAreDifferentThanLastSaved(candidateSettings));
         });
       });
 
       apiKeyInput.addEventListener('input', function(e) {
-        console.log("apik input");
-        const candidateSettings = pullSettingsFromHtml();
-        if (settingsAreDifferentThanLastSaved(candidateSettings)){
-          changed=true;
-          document.querySelector("button[type='submit']").dataset.changed = 'true';
-          document.querySelector("#saveNotice").dataset.changed = 'true';
-        }else{
-          changed=false;
-          document.querySelector("button[type='submit']").dataset.changed = 'false';
-          document.querySelector("#saveNotice").dataset.changed = 'false';
-        }
+        const candidateSettings = settingsModule.pullSettingsFromHtml();
+        settingsModule.setSettingsAsHavingUnsavedChanges(settingsModule.settingsAreDifferentThanLastSaved(candidateSettings));
         const apiKey = apiKeyInput.value.trim();
-        if (apiKey===''){
-          return;
-        }
-        if (formatIsValid(apiKey)) {
-          optionsHtmlPageInfo('<span style="color: green;">&#10004;</span> API key format is valid!', null);
+        if (util.apiKeyFormatIsValid(apiKey)) {
+          settingsModule.optionsHtmlPageInfo('<span style="color: green;">&#10004;</span> API key format is valid!', null);
         } else {
-          optionsHtmlPageInfo('<span style="color: red;">&#10006;</span> API key format is invalid!', null);
+          if (apiKey !== ''){
+            settingsModule.optionsHtmlPageInfo('<span style="color: red;">&#10006;</span> API key format is invalid!', null);
+          }
         }
+        console.log("fb");
         e.stopPropagation();
       });
 
       //set up test button.
       const testButton= document.getElementById('testApiKeyButton');
       testButton.addEventListener('click', async () => {
-        console.log("testButton.addEventListener('click'");
+        //~ console.log("testButton.addEventListener('click'");
         const apiKey = apiKeyInput.value.trim();
-        var isUsable = await apiKeyIsValidWithOpenAI(apiKey);
+        var isUsable = await util.apiKeyIsValidWithOpenAI(apiKey);
         if (isUsable[0]===true){
-          optionsHtmlPageInfo(`<span style="color: green;">&#10004;</span> API key worked when calling OpenAI; there are ${isUsable[1]} models in the list.`, null);
+          settingsModule.optionsHtmlPageInfo(`<span style="color: green;">&#10004;</span> API key worked when calling OpenAI; there are ${isUsable[1]} models in the list.`, null);
         }else{
-          optionsHtmlPageInfo(`<span style="color: red;">&#10006;</span>${isUsable[1]}`, null);
+          settingsModule.optionsHtmlPageInfo(`<span style="color: red;">&#10006;</span>${isUsable[1]}`, null);
         }
       }); 
       
@@ -209,33 +200,40 @@ let settingsModule={
         }
       });
       
-      console.log("buttin stuf set.up.)");
+      document.querySelector("form").addEventListener("submit", function(){
+        try{
+            settingsModule.saveSettings(true);
+            document.querySelector("button[type='submit']").dataset.changed = 'false';
+            document.querySelector("#saveNotice").dataset.changed = 'false';
+            changed=false;
+        } catch (error) {
+            settingsModule.optionsHtmlPageInfo(null, `failed to save options. ${error}`);
+        }
+      });
       
       //load the old settings and fire initial validation.
       try{
-        await this.loadSettingsFromBrowserMemoryIntoConfigPage();
+        settingsModule.applySettingsToConfigurationPage();
         //fake input event to force checking apiKey format even on load.
         //still weird, this should happen automatically since we theoretically have set up the form already, and then restoreSettings 
         //is sticking stuff in the input, which should trigger the automatic checking...
         document.getElementById('apiKey').dispatchEvent(new Event('input'));
       } catch (error) {
-        optionsHtmlPageInfo(null, "failed to restore options."+ error)
+        settingsModule.optionsHtmlPageInfo(null, "failed to restore options."+ error)
         
         //default to what they are now at least.
-        lastSavedSettings=pullSettingsFromHtml();
+        settingsModule.lastSavedSettings = settingsModule.pullSettingsFromHtml();
+        document.getElementById('apiKey').dispatchEvent(new Event('input'));
       }
-      
-      document.querySelector("form").addEventListener("submit", function(){
-        try{
-            this.saveSettings();
-            document.querySelector("button[type='submit']").dataset.changed = 'false';
-            document.querySelector("#saveNotice").dataset.changed = 'false';
-            changed=false;
-        } catch (error) {
-            optionsHtmlPageInfo(null, `failed to save options. ${error}`);
-        }
-      });
-    });    
-    console.log("Z");
+   
   }
 }
+
+let setupCount=0;
+if (document.getElementById("galleryWGOptionsBody")!=null){
+  setupCount++;
+  //~ console.log("setting up page since i referenced global settingsModule.", document.URL, setupCount);
+  settingsModule.setupOptionsHtmlPage();
+}else{
+  //~ console.log("NOT setting up page since am not who I think i am", document.URL);
+};
