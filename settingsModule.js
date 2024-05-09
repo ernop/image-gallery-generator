@@ -4,9 +4,9 @@ let settingsModule = {
   lastSavedSettings: null,
   settings:{}, //these are the ones who should be consulted all the time and modified.
   changed:false,
-  onSettingPage:false, //just a tracker if we are being called via this other in-browser configuration method.
+  onSettingPage:true, //just a tracker if we are being called via this other in-browser configuration method.
   loadSettings:async function() { //this populates settings, called at startup.
-    settingsModule.optionsHtmlPageInfo(null,"loading settings again.");
+    //~ settingsModule.optionsHtmlPageInfo(null,"loading settings again.");
     try{
       await browser.storage.sync.get("settings").then((result) => {
         if (result.settings) {
@@ -18,7 +18,6 @@ let settingsModule = {
     }catch{
       let defaultGuy=settingsModule.privateApplyDefaultSettings({});
       settingsModule.settings=defaultGuy;
-      console.log("fall back to default.");
     }
   },
 
@@ -47,18 +46,16 @@ let settingsModule = {
     const apiKeyStatusElement = document.getElementById('apiKeyStatus');
     const output = document.getElementById('output');
 
-    if (keyRelatedMessage!= null){
+    if (keyRelatedMessage != null){
       if (settingsModule.onSettingPage){
         apiKeyStatusElement.innerHTML = `${keyRelatedMessage}<hr>${apiKeyStatusElement.innerHTML}`;
       }
-      console.log(keyRelatedMessage);
     }
 
     if (generalMessage!= null){
       if (settingsModule.onSettingPage){
         output.innerHTML = `${generalMessage}<hr>${output.innerHTML}`;
       }
-      console.log(generalMessage);
     }
   },
 
@@ -68,8 +65,6 @@ let settingsModule = {
   //hold on why don't i just adjust the name we save options into? well, first of all that would nuke any users settings every time we upgraded which would be very bad.
   settingsAreDifferentThanLastSaved: function(candidateSettings) {
     for (const key in candidateSettings) {
-      //~ console.log(candidateSettings);
-      //~ console.log(key);
       if (candidateSettings[key] !== settingsModule.lastSavedSettings[key]) {
         return true;
       }
@@ -132,10 +127,8 @@ let settingsModule = {
   },
 
   setSettingsAsHavingUnsavedChanges: function(val){
-    console.log("setSettingsAsHavingUnsavedChanges:", val);
     settingsModule.changed = val;
     var ss = '';
-    //ah, shitty js
     if (val==true){
       ss="true";
     }else {
@@ -146,88 +139,81 @@ let settingsModule = {
   },
 
   setupOptionsHtmlPage:async function(){
-    //load the settings first.
     await settingsModule.loadSettings();
     console.log("setting up options page, loaded settings (internal):");
-    //~ console.log(settingsModule.settings);
-
-    //~ document.addEventListener("DOMContentLoaded", async function() {
-      //set up monitoring for format of entered apikeys.
-      const apiKeyInput = document.getElementById('apiKey');
-      const apiKeyStatusElement = document.getElementById('apiKeyStatus');
-      document.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
-        checkbox.addEventListener('change', () => {
-          const candidateSettings = settingsModule.pullSettingsFromHtml();
-          settingsModule.setSettingsAsHavingUnsavedChanges(settingsModule.settingsAreDifferentThanLastSaved(candidateSettings));
-        });
-      });
-
-      apiKeyInput.addEventListener('input', function(e) {
+    const apiKeyInput = document.getElementById('apiKey');
+    const apiKeyStatusElement = document.getElementById('apiKeyStatus');
+    document.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+      checkbox.addEventListener('change', () => {
         const candidateSettings = settingsModule.pullSettingsFromHtml();
         settingsModule.setSettingsAsHavingUnsavedChanges(settingsModule.settingsAreDifferentThanLastSaved(candidateSettings));
-        const apiKey = apiKeyInput.value.trim();
-        if (util.apiKeyFormatIsValid(apiKey)) {
-          settingsModule.optionsHtmlPageInfo('<span style="color: green;">&#10004;</span> API key format is valid!', null);
-        } else {
-          if (apiKey !== ''){
-            settingsModule.optionsHtmlPageInfo('<span style="color: red;">&#10006;</span> API key format is invalid!', null);
-          }
-        }
-        console.log("fb");
-        e.stopPropagation();
       });
+    });
 
-      //set up test button.
-      const testButton= document.getElementById('testApiKeyButton');
-      testButton.addEventListener('click', async () => {
-        //~ console.log("testButton.addEventListener('click'");
-        const apiKey = apiKeyInput.value.trim();
-        var isUsable = await util.apiKeyIsValidWithOpenAI(apiKey);
-        if (isUsable[0]===true){
-          settingsModule.optionsHtmlPageInfo(`<span style="color: green;">&#10004;</span> API key worked when calling OpenAI; there are ${isUsable[1]} models in the list.`, null);
-        }else{
-          settingsModule.optionsHtmlPageInfo(`<span style="color: red;">&#10006;</span>${isUsable[1]}`, null);
+    apiKeyInput.addEventListener('input', function(e) {
+      const candidateSettings = settingsModule.pullSettingsFromHtml();
+      settingsModule.setSettingsAsHavingUnsavedChanges(settingsModule.settingsAreDifferentThanLastSaved(candidateSettings));
+      const apiKey = apiKeyInput.value.trim();
+      if (util.apiKeyFormatIsValid(apiKey)) {
+        settingsModule.optionsHtmlPageInfo('<span style="color: green;">&#10004;</span> API key format is valid!', null);
+      } else {
+        if (apiKey !== ''){
+          settingsModule.optionsHtmlPageInfo('<span style="color: red;">&#10006;</span> API key format is invalid!', null);
         }
-      });
-
-      //fix the way we mask
-      const toggleApiKeyMaskButton = document.getElementById('toggleApiKeyMask');
-      toggleApiKeyMaskButton.addEventListener('click', () => {
-        if (apiKeyInput.type === 'password') {
-          apiKeyInput.type = 'text';
-          toggleApiKeyMaskButton.textContent = 'Hide';
-        } else {
-          apiKeyInput.type = 'password';
-          toggleApiKeyMaskButton.textContent = 'Show';
-        }
-      });
-
-      document.querySelector("form").addEventListener("submit", function(){
-        try{
-            settingsModule.saveSettings(true);
-            document.querySelector("button[type='submit']").dataset.changed = 'false';
-            document.querySelector("#saveNotice").dataset.changed = 'false';
-            changed=false;
-        } catch (error) {
-            settingsModule.optionsHtmlPageInfo(null, `failed to save options. ${error}`);
-        }
-      });
-
-      //load the old settings and fire initial validation.
-      try{
-        settingsModule.applySettingsToConfigurationPage();
-        //fake input event to force checking apiKey format even on load.
-        //still weird, this should happen automatically since we theoretically have set up the form already, and then restoreSettings
-        //is sticking stuff in the input, which should trigger the automatic checking...
-        document.getElementById('apiKey').dispatchEvent(new Event('input'));
-      } catch (error) {
-        settingsModule.optionsHtmlPageInfo(null, "failed to restore options."+ error)
-
-        //default to what they are now at least.
-        settingsModule.lastSavedSettings = settingsModule.pullSettingsFromHtml();
-        document.getElementById('apiKey').dispatchEvent(new Event('input'));
       }
+      e.stopPropagation();
+    });
 
+    //set up test button.
+    const testButton= document.getElementById('testApiKeyButton');
+    testButton.addEventListener('click', async () => {
+      console.log("testButton.addEventListener('click'");
+      const apiKey = apiKeyInput.value.trim();
+      var isUsable = await util.apiKeyIsValidWithOpenAI(apiKey);
+      if (isUsable[0]===true){
+        settingsModule.optionsHtmlPageInfo(`<span style="color: green;">&#10004;</span> API key worked when calling OpenAI; there are ${isUsable[1]} models in the list.`, null);
+      }else{
+        settingsModule.optionsHtmlPageInfo(`<span style="color: red;">&#10006;</span>${isUsable[1]}`, null);
+      }
+    });
+
+    //fix the way we mask
+    const toggleApiKeyMaskButton = document.getElementById('toggleApiKeyMask');
+    toggleApiKeyMaskButton.addEventListener('click', () => {
+      if (apiKeyInput.type === 'password') {
+        apiKeyInput.type = 'text';
+        toggleApiKeyMaskButton.textContent = 'Hide';
+      } else {
+        apiKeyInput.type = 'password';
+        toggleApiKeyMaskButton.textContent = 'Show';
+      }
+    });
+
+    document.querySelector("form").addEventListener("submit", function(){
+      try{
+          settingsModule.saveSettings(true);
+          document.querySelector("button[type='submit']").dataset.changed = 'false';
+          document.querySelector("#saveNotice").dataset.changed = 'false';
+          changed=false;
+      } catch (error) {
+          settingsModule.optionsHtmlPageInfo(null, `failed to save options. ${error}`);
+      }
+    });
+
+    //load the old settings and fire initial validation.
+    try{
+      settingsModule.applySettingsToConfigurationPage();
+      //fake input event to force checking apiKey format even on load.
+      //still weird, this should happen automatically since we theoretically have set up the form already, and then restoreSettings
+      //is sticking stuff in the input, which should trigger the automatic checking...
+      document.getElementById('apiKey').dispatchEvent(new Event('input'));
+    } catch (error) {
+      settingsModule.optionsHtmlPageInfo(null, "failed to restore options."+ error)
+
+      //default to what they are now at least.
+      settingsModule.lastSavedSettings = settingsModule.pullSettingsFromHtml();
+      document.getElementById('apiKey').dispatchEvent(new Event('input'));
+    }
   }
 }
 

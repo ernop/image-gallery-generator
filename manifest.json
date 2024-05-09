@@ -15,10 +15,10 @@
   },
   "content_scripts": [ {
     "js": [ "util.js",
+      "jquery.min.js",
       "settingsModule.js",
       "aiModule.js",
       "labelsModule.js",
-      "jquery.min.js",
       "main.js"  ],
     "css": ["styles.css"],
     "matches": [

@@ -119,7 +119,7 @@ const labels = [
   {
     id: "exitGallery",
     condition: (settings, globalState) => true,  // Always possible to exit
-    action: (settings, globalState) => backToNormal(),
+    action: (settings, globalState) => globalState.doExit=true,
     shortcut: "Escape",
     content: () => "",
     help: "Exit the gallery view."

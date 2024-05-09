@@ -5,11 +5,13 @@ function displayInternalError(t){
 }
 
 let ai = {
+
   // Send image URL to API endpoint for description
   DescribeImageAI: function(url){
+    //await settingsModule.loadSettings();
     displayInternalError("AI");
 
-    if (!util.apiKeyFormatIsValid(settings.apiKey)){
+    if (!util.apiKeyFormatIsValid(settingsModule.settings.apiKey)){
       alert("apikey format is invalid.");
     }
     let apiUrl = "https://api.openai.com/v1/chat/completions";

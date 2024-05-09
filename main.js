@@ -31,10 +31,10 @@
         $('body').prepend(
         `
           <div id="galleryViewWrapper">
-            <div id="labelZone" style="color:white;float:left;position:absolute;z-index:202;padding:5px;"></div>
-            <div id="blackBackground" style="z-index:100;position:absolute;display:flex;align-items:center;justify-content: left:0;top:0;display:none;width:100%;height:100%;background-color:black;position:absolute;z-index:200;">
-              <img id="targetImg" style="max-width:99%;max-height:99%;display:none;" src="" />
-              <video controls="true" autoplay="" id="targetVideo" style="max-width:99%;max-height:99%;display:none;" src=""></video>
+            <div id="labelZone"></div>
+            <div id="blackBackground">
+              <img id="targetImg" src="" />
+              <video controls="true" autoplay="" id="targetVideo" src=""></video>
               <div id="output"></div>
             </div>
           </div>
@@ -89,18 +89,40 @@
     $('body').wrapInner('<div class="oldBody"></div>');
 
     //set these before galleryMode is enabled so that the initial experience is nice. We add these undisplayed images and rotate their src variable so that the browser will preload them so that when you navigate, it will work.
-    $('body').prepend('<img id="targetImg_preload0" style="display:none;" /><img id="targetImg_preload1" style="display:none;" /><img id="targetImg_preload2" style="display:none;"/><img id="targetImg_preload3" style="display:none;"/><img id="targetImg_preload4" style="display:none;"/><img id="targetImg_preload5" style="display:none;"/>');
+    for (let i = 0; i < 7; i++) {
+      $('body').prepend(`<img id="targetImg_preload${i}" style="display:none;">`);
+    }
   }
 
   // Back to normal
   function backToNormal() {
     globalState.galleryOn = false;
-    $("#blackBackground").hide();
-    $(document).unbind('keydown');
-    $(document).unbind('wheel');
+
+    // Hide gallery-specific elements
     $("#galleryViewWrapper").hide();
+    $("#blackBackground").hide();
     $('.oldBody').show();
+
+    // Pause video if playing
     document.getElementById("targetVideo").pause();
+
+    // Unbind all event handlers set during gallery mode
+    $(document).off('keydown'); // Unbind keyboard shortcuts
+    $(window).off('resize'); // Unbind resize events
+    $("#blackBackground").off('click'); // Unbind click outside image
+    $("#targetImg").off('click'); // Unbind image click
+    //~ document.removeEventListener('wheel', handleMouseWheel); // Unbind mouse wheel handler
+
+    // Reset state variables
+    globalState.imageUrls = [];
+    globalState.imageTypes = [];
+    globalState.originalImageNames = [];
+    globalState.displayedImageIndex = 0;
+    globalState.redrawCount = 0;
+    globalState.relatedCount = 0;
+    globalState.preloadCount = 0;
+
+    $("#galleryViewWrapper").remove();
   }
 
   function setPreloads(){
@@ -213,38 +235,44 @@
   function createLabel(id, content) {
     var ctext=content(globalState);
     if (ctext){
-      return `<div id="${id}">${content(globalState)}</div>`
+      return `<div id="${id}" class='outlined-text'>${content(globalState)}</div>`
     }
     return '';
   }
 
   const handleShortcut = function(e) {
     const key = e.key;  // Use the human-readable key identifier
-
     for (const label of labels) {
       if ((Array.isArray(label.shortcut) && label.shortcut.includes(key)) || label.shortcut === key) {
         label.action(settingsModule.settings, globalState);
         redraw();
         redrawLabels();
         e.preventDefault();
+        if (globalState.doExit){
+          backToNormal();
+          globalState.doExit=false;
+        }
         break;
       }
     }
+
   };
 
   function setKeyboardShortcuts() {
     $(document).keydown(handleShortcut);
-    document.addEventListener('wheel', function(e) {
-      // Handle mouse wheel navigation
-      if (e.deltaY < 0) {
-        globalState.displayedImageIndex -= 1;
-      } else {
-        globalState.displayedImageIndex += 1;
-      }
-      redraw();
-      e.preventDefault();
-    });
+    document.addEventListener('wheel', handleMouseWheel);
   }
+
+function handleMouseWheel(e){
+  if (e.deltaY < 0) {
+    globalState.displayedImageIndex -= 1;
+  } else {
+    globalState.displayedImageIndex += 1;
+  }
+  redraw();
+
+  e.preventDefault();
+}
 
   // Initialize
   setup();
