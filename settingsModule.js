@@ -1,3 +1,5 @@
+//no dependencies.
+
 let settingsModule = {
   lastSavedSettings: null,
   settings:{}, //these are the ones who should be consulted all the time and modified.
@@ -19,21 +21,21 @@ let settingsModule = {
       console.log("fall back to default.");
     }
   },
-  
+
   saveSettings: function(onSettingsConfigPage) {
     settingsModule.onSettingsConfigPage=onSettingsConfigPage;
-    
-    let toSaveSettings 
+
+    let toSaveSettings
     if (onSettingsConfigPage){
       toSaveSettings = settingsModule.pullSettingsFromHtml();
     }else{
       toSaveSettings = settingsModule.settings;
     }
-    
+
     if (!util.apiKeyFormatIsValid(toSaveSettings.apiKey) && toSaveSettings.apiKey!='' && toSaveSettings.apiKey!=undefined) {
       settingsModule.optionsHtmlPageInfo("Invalid API key format. But we're saving it anyway because they may change the required format, and it would be very evil of this extension to just overtly refuse to save an apikey even if it were later valid.", null);
     }
-    
+
     browser.storage.sync.set({ settings: toSaveSettings }).then(() => {
         settingsModule.optionsHtmlPageInfo(null, "Settings saved okay.");
         settingsModule.lastSavedSettings=toSaveSettings;
@@ -44,14 +46,14 @@ let settingsModule = {
   optionsHtmlPageInfo:function(keyRelatedMessage, generalMessage){
     const apiKeyStatusElement = document.getElementById('apiKeyStatus');
     const output = document.getElementById('output');
-    
+
     if (keyRelatedMessage!= null){
       if (settingsModule.onSettingPage){
         apiKeyStatusElement.innerHTML = `${keyRelatedMessage}<hr>${apiKeyStatusElement.innerHTML}`;
       }
       console.log(keyRelatedMessage);
     }
-    
+
     if (generalMessage!= null){
       if (settingsModule.onSettingPage){
         output.innerHTML = `${generalMessage}<hr>${output.innerHTML}`;
@@ -59,7 +61,7 @@ let settingsModule = {
       console.log(generalMessage);
     }
   },
-   
+
   //for slightly better checking on if we actually need to save settings.
   //also it's important to pull keys from candidate, since if the user is a returning, upgraded user with an old settings type object stored,
   //then they may have a sparse settings object, so we want to compare them against the NEW one.
@@ -74,7 +76,7 @@ let settingsModule = {
     }
     return false;
   },
-  
+
   //when you load settings, run it through this, that way if the setting you got from storage is missing a key and its value, it'll be filled in from default.
   privateApplyDefaultSettings:function(settings) {
     const defaultSettings = {
@@ -89,7 +91,7 @@ let settingsModule = {
 
     return Object.assign({}, defaultSettings, settings);
   },
-  
+
   pullSettingsFromHtml:function(){
     const settings= {
       imageCountShown: document.querySelector("#imageCountShown").checked,
@@ -102,7 +104,7 @@ let settingsModule = {
     };
     return settings;
   },
-  
+
   applySettingsToConfigurationPage: function() {
     if (settingsModule.settings && settingsModule.settings!={}){
       //because this is what we just loaded, even though it may not be what should be saved, since they may have been missing defaults.
@@ -117,8 +119,8 @@ let settingsModule = {
     document.querySelector("#preloadLabelShown").checked = settingsToRestore.preloadLabelShown;
     document.querySelector("#anyImagePreloadedLabelShown").checked = settingsToRestore.anyImagePreloadedLabelShown;
     document.querySelector("#apiKey").value = settingsToRestore.apiKey;
-      
-    //if we loaded an apikey, hide it by default. 
+
+    //if we loaded an apikey, hide it by default.
     const apiKeyInput = document.getElementById('apiKey');
     const toggleApiKeyMaskButton = document.getElementById('toggleApiKeyMask');
     if (settingsToRestore.apiKey){
@@ -142,13 +144,13 @@ let settingsModule = {
     document.querySelector("button[type='submit']").dataset.changed = ss;
     document.querySelector("#saveNotice").dataset.changed = ss;
   },
-  
+
   setupOptionsHtmlPage:async function(){
     //load the settings first.
     await settingsModule.loadSettings();
     console.log("setting up options page, loaded settings (internal):");
     //~ console.log(settingsModule.settings);
-    
+
     //~ document.addEventListener("DOMContentLoaded", async function() {
       //set up monitoring for format of entered apikeys.
       const apiKeyInput = document.getElementById('apiKey');
@@ -186,8 +188,8 @@ let settingsModule = {
         }else{
           settingsModule.optionsHtmlPageInfo(`<span style="color: red;">&#10006;</span>${isUsable[1]}`, null);
         }
-      }); 
-      
+      });
+
       //fix the way we mask
       const toggleApiKeyMaskButton = document.getElementById('toggleApiKeyMask');
       toggleApiKeyMaskButton.addEventListener('click', () => {
@@ -199,7 +201,7 @@ let settingsModule = {
           toggleApiKeyMaskButton.textContent = 'Show';
         }
       });
-      
+
       document.querySelector("form").addEventListener("submit", function(){
         try{
             settingsModule.saveSettings(true);
@@ -210,22 +212,22 @@ let settingsModule = {
             settingsModule.optionsHtmlPageInfo(null, `failed to save options. ${error}`);
         }
       });
-      
+
       //load the old settings and fire initial validation.
       try{
         settingsModule.applySettingsToConfigurationPage();
         //fake input event to force checking apiKey format even on load.
-        //still weird, this should happen automatically since we theoretically have set up the form already, and then restoreSettings 
+        //still weird, this should happen automatically since we theoretically have set up the form already, and then restoreSettings
         //is sticking stuff in the input, which should trigger the automatic checking...
         document.getElementById('apiKey').dispatchEvent(new Event('input'));
       } catch (error) {
         settingsModule.optionsHtmlPageInfo(null, "failed to restore options."+ error)
-        
+
         //default to what they are now at least.
         settingsModule.lastSavedSettings = settingsModule.pullSettingsFromHtml();
         document.getElementById('apiKey').dispatchEvent(new Event('input'));
       }
-   
+
   }
 }
 

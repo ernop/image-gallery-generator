@@ -4,11 +4,11 @@
     'helpShown':false,
     'imageUrls':[],
     'imageTypes':[],
-    
+
     // Image list
     'originalImageNames':[],
     'MAX_TOKENS':1600,
-    
+
     // Current position in playback
     'displayedImageIndex':0,
     'redrawCount':0,
@@ -16,7 +16,7 @@
     preloadCount:0,
     galleryOn:false,
   }
-  
+
   async function setup() {
     // Load stored settings
     await settingsModule.loadSettings();
@@ -52,7 +52,7 @@
       redraw();
       setKeyboardShortcuts();
     });
-    
+
     $("#targetImg").click(function(e) {
         // should only trigger on direct background clicks not image clicks.
         e.stopPropagation();
@@ -68,7 +68,7 @@
         redraw();
     });
   }
-  
+
   function readStuffFromPage(){
     // Initialize image list
     $('.fileText').each(function(index) {
@@ -91,7 +91,7 @@
     //set these before galleryMode is enabled so that the initial experience is nice. We add these undisplayed images and rotate their src variable so that the browser will preload them so that when you navigate, it will work.
     $('body').prepend('<img id="targetImg_preload0" style="display:none;" /><img id="targetImg_preload1" style="display:none;" /><img id="targetImg_preload2" style="display:none;"/><img id="targetImg_preload3" style="display:none;"/><img id="targetImg_preload4" style="display:none;"/><img id="targetImg_preload5" style="display:none;"/>');
   }
-   
+
   // Back to normal
   function backToNormal() {
     globalState.galleryOn = false;
@@ -160,11 +160,11 @@
       }
 
       redrawLabels();
-		}
+      }
 	}
 
-  
-  //if needed, advance to the next image (after some command which changed the alleged "current index" for example.
+
+  //Redraw the main displayed window in the gallery.
   function redraw() {
     if (!globalState.galleryOn){
       return;
@@ -182,6 +182,7 @@
       $("#targetImg").hide();
       $("#targetVideo").show();
       document.getElementById("targetVideo").src = imageUrls[globalState.displayedImageIndex];
+      redrawLabels();
     }
     else{ //normal img tag can display these
       $("#targetImg").show();
@@ -201,7 +202,7 @@
     console.log(t);
     $("#output").html(t);
   }
-  
+
   function redrawLabels() {
     if (!globalState.galleryOn) return;
     const labelHtml = labels.filter(label => label.condition(settingsModule.settings, globalState))
@@ -210,47 +211,31 @@
   }
 
   function createLabel(id, content) {
-    return `<div id="${id}">${content(globalState)}</div>`;
+    var ctext=content(globalState);
+    if (ctext){
+      return `<div id="${id}">${content(globalState)}</div>`
+    }
+    return '';
   }
 
   const handleShortcut = function(e) {
-    const keyCode = e.which;
-    for (const shortcut of keyboardShortcuts) {
-      if (shortcut.keycodes.includes(keyCode)) {
-        switch (shortcut.type) {
-          case 'image':
-            shortcut.action(settingsModule.settings); //confirm they do pass by value here?
-            redraw();
-            break;
-          case 'labels':
-            shortcut.action(settingsModule.settings); //directly modifies settings
-            redrawLabels();
-            settingsModule.saveSettings(false);
-            break;
-          case 'clearLabels':
-            shortcut.action(settingsModule.settings);
-            redrawLabels();
-            globalState.helpShown = false;
-            settingsModule.saveSettings(false);
-          case 'ai':
-            ai.DescribeImageAI();
-            break;
-          case 'help':
-            globalState.helpShown =!globalState.helpShown;
-            redrawLabels();
-          case 'exit':
-            // exit code here
-            backToNormal();
-            break;
-        }
+    const key = e.key;  // Use the human-readable key identifier
+
+    for (const label of labels) {
+      if ((Array.isArray(label.shortcut) && label.shortcut.includes(key)) || label.shortcut === key) {
+        label.action(settingsModule.settings, globalState);
+        redraw();
+        redrawLabels();
         e.preventDefault();
+        break;
       }
     }
   };
 
-  function setKeyboardShortcuts(){
+  function setKeyboardShortcuts() {
     $(document).keydown(handleShortcut);
-    document.addEventListener('wheel', function(e){
+    document.addEventListener('wheel', function(e) {
+      // Handle mouse wheel navigation
       if (e.deltaY < 0) {
         globalState.displayedImageIndex -= 1;
       } else {

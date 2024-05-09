@@ -1,3 +1,9 @@
+
+function displayInternalError(t){
+  console.log(t);
+  $("#output").html(t);
+}
+
 let ai = {
   // Send image URL to API endpoint for description
   DescribeImageAI: function(url){
