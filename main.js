@@ -39,7 +39,6 @@
     });
 
     $('.navLinks').prepend('[<a href="#" class="galleryOn">Gallery Mode</a>] ');
-    $('body').wrapInner('<div class="oldBody"></div>');
 
     for (let i = 0; i < globalState.maxPreloadCount; i++) {
       $('body').prepend(`<img id="targetImg_preload${i}" style="display:none;">`);
@@ -48,12 +47,13 @@
   }
 
   function enableGalleryMode() {
+    if (globalState.galleryOn) return;
+
     globalState.galleryOn = true;
-    $(".oldBody").hide();
-    $("body").css("padding", "0");
+    $("body").addClass("gallery-mode");
 
     if ($("#galleryViewWrapper").length == 0) {
-      $('body').prepend(`
+      $('body').append(`
         <div id="galleryViewWrapper">
           <div id="labelZone"></div>
           <div id="blackBackground">
@@ -63,9 +63,10 @@
           </div>
         </div>
       `);
+    } else {
+      $("#galleryViewWrapper, #blackBackground").show();
     }
 
-    $("#galleryViewWrapper, #blackBackground").show();
     styleBlackBackground();
     redraw();
     setKeyboardShortcuts();
@@ -86,7 +87,7 @@
   function backToNormal() {
     globalState.galleryOn = false;
     $("#galleryViewWrapper, #blackBackground").hide();
-    $('.oldBody').show();
+    $("body").removeClass("gallery-mode");
     document.getElementById("targetVideo").pause();
 
     $(document).off('keydown');
@@ -95,7 +96,6 @@
     $("#targetImg").off('click');
 
     resetGlobalState();
-    $("#galleryViewWrapper").remove();
   }
 
   function resetGlobalState() {
