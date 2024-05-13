@@ -1,19 +1,20 @@
 (function() {
 
   const globalState={
-    'helpShown':false,
-    'imageUrls':[],
-    'imageTypes':[],
+    helpShown:false,
+    imageUrls:[],
+    imageTypes:[],
 
     // Image list
-    'originalImageNames':[],
-    'MAX_TOKENS':1600,
+    originalImageNames:[],
+    MAX_TOKENS:1600, //not used yet, for AI stuff.
 
     // Current position in playback
-    'displayedImageIndex':0,
-    'redrawCount':0,
-    'relatedCount':0,
+    displayedImageIndex:0,
+    redrawCount:0,
+    relatedCount:0,
     preloadCount:0,
+    maxPreloadCount:7, //preload N images or videos.
     galleryOn:false,
   }
 
@@ -44,9 +45,9 @@
       $("#blackBackground").show();
 
       //these get nuked somehow
-      //~ $("#blackBackground").css("justify-content","center");
-      //~ $("#blackBackground").css("align-content","center");
-      //~ $("#blackBackground").css("display","flex");
+      $("#blackBackground").css("justify-content","center");
+      $("#blackBackground").css("align-content","center");
+      $("#blackBackground").css("display","flex");
       $("#output").css("background","white");
       $("#output").css("color","grey");
       redraw();
@@ -54,6 +55,10 @@
     });
 
     $("#targetImg").click(function(e) {
+        // should only trigger on direct background clicks not image clicks.
+        e.stopPropagation();
+    });
+    $("#targetVideo").click(function(e) {
         // should only trigger on direct background clicks not image clicks.
         e.stopPropagation();
     });
@@ -89,8 +94,11 @@
     $('body').wrapInner('<div class="oldBody"></div>');
 
     //set these before galleryMode is enabled so that the initial experience is nice. We add these undisplayed images and rotate their src variable so that the browser will preload them so that when you navigate, it will work.
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < globalState.maxPreloadCount; i++) {
       $('body').prepend(`<img id="targetImg_preload${i}" style="display:none;">`);
+    }
+    for (let i = 0; i < globalState.maxPreloadCount; i++) {
+      $('body').prepend(`<video id="targetVideo_preload${i}" style="display:none;" src=""></video>`);
     }
   }
 
@@ -111,7 +119,6 @@
     $(window).off('resize'); // Unbind resize events
     $("#blackBackground").off('click'); // Unbind click outside image
     $("#targetImg").off('click'); // Unbind image click
-    //~ document.removeEventListener('wheel', handleMouseWheel); // Unbind mouse wheel handler
 
     // Reset state variables
     globalState.imageUrls = [];
@@ -125,26 +132,31 @@
     $("#galleryViewWrapper").remove();
   }
 
+  //this should do preloading of videos, too.
+  //this is getting called before the images are loaded into the page?
   function setPreloads(){
     var ii = 0;
-    while (ii< 5){
+    while (ii< 7){
       var candidateIndex = globalState.displayedImageIndex+ii;
+      var thisImageType = globalState.imageTypes[candidateIndex];
+      if (util.isNullOrEmpty(thisImageType)){
+        break;
+      }
       var theUrl = globalState.imageUrls[candidateIndex];
       if (util.isNullOrEmpty(theUrl)){
         break;
       }
-      var preloaderElement=document.getElementById(`targetImg_preload${ii}`);
-      if (util.isNullOrEmpty(preloaderElement)){
-        displayInternalError(`failed to load ${ii}th preloader`);
-        break;
+      if (thisImageType=="video"){ //it's a video
+        var preloaderElement=document.getElementById(`targetVideo_preload${ii}`);
+        preloaderElement.src=theUrl;
+      }else{ //it's an image
+        var preloaderElement=document.getElementById(`targetImg_preload${ii}`);
+        preloaderElement.src=theUrl;
       }
-
-      preloaderElement.src=theUrl;
+      //~ console.log("preloaded:",theUrl);
       ii+=1;
     }
 
-    //check the preloaded image loading status and optionally display labels
-    //TODO with settings off this is not actually useful but very cheap anyway.
     watchAndGo(1, globalState.redrawCount);
   }
 
@@ -203,21 +215,18 @@
     if (thisImageType=="video"){ //webms
       $("#targetImg").hide();
       $("#targetVideo").show();
-      document.getElementById("targetVideo").src = imageUrls[globalState.displayedImageIndex];
-      redrawLabels();
+      document.getElementById("targetVideo").src = globalState.imageUrls[globalState.displayedImageIndex];
     }
     else{ //normal img tag can display these
       $("#targetImg").show();
       $("#targetVideo").hide();
-
       document.getElementById("targetImg").src = globalState.imageUrls[globalState.displayedImageIndex];
-
-      setPreloads();
-
-      //annoyance: if preloading is done, then navigation to next image is instant, but if not ready the old image hangs around for a while which is very jarring and bad.
-      //but if it's not done, then keyboard actions have no visible result until image is loaded.
-      redrawLabels();
     }
+    setPreloads();
+
+    //annoyance: if preloading is done, then navigation to next image is instant, but if not ready the old image hangs around for a while which is very jarring and bad.
+    //but if it's not done, then keyboard actions have no visible result until image is loaded.
+    redrawLabels();
   }
 
   function displayInternalError(t){
@@ -242,6 +251,7 @@
 
   const handleShortcut = function(e) {
     const key = e.key;  // Use the human-readable key identifier
+
     for (const label of labels) {
       if ((Array.isArray(label.shortcut) && label.shortcut.includes(key)) || label.shortcut === key) {
         label.action(settingsModule.settings, globalState);
@@ -270,8 +280,6 @@ function handleMouseWheel(e){
     globalState.displayedImageIndex += 1;
   }
   redraw();
-
-  e.preventDefault();
 }
 
   // Initialize

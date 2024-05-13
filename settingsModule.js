@@ -54,7 +54,9 @@ let settingsModule = {
 
     if (generalMessage!= null){
       if (settingsModule.onSettingPage){
-        output.innerHTML = `${generalMessage}<hr>${output.innerHTML}`;
+        if (output&&output!=null){
+          output.innerHTML = `${generalMessage}<hr>${output.innerHTML}`;
+        }
       }
     }
   },

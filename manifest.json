@@ -2,7 +2,7 @@
   "manifest_version": 2,
   "name": "4Chan Gallery Viewer WG",
   "short_name": "GalleryView",
-  "version": "0.0.18",
+  "version": "0.0.19",
   "description": "Adds gallery button to 4chan wg board thread views, with keyboard shortcuts. Also: optionally, add your OpenAI ApiKey to have the power to do image description lookups.",
   "permissions": [
     "contextMenus",
@@ -15,7 +15,7 @@
   },
   "content_scripts": [ {
     "js": [ "util.js",
-      "jquery.min.js",
+      "jquery.js",
       "settingsModule.js",
       "aiModule.js",
       "labelsModule.js",
