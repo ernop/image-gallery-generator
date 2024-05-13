@@ -244,7 +244,7 @@
   function createLabel(id, content) {
     var ctext=content(globalState);
     if (ctext){
-      return `<div id="${id}" class='outlined-text'>${content(globalState)}</div>`
+      return `<div id="${id}" class='outlined-text' data-text='${content(globalState)}'>${content(globalState)}</div>`
     }
     return '';
   }
