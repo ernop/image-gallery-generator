@@ -21,6 +21,10 @@
   padding: 5px;
 }
 
+.label {
+  opacity: 1;
+}
+
 #blackBackground {
   z-index: 100;
   position: absolute;

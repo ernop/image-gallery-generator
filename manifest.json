@@ -6,6 +6,7 @@
   "description": "Adds gallery button to 4chan wg board thread views, with keyboard shortcuts. Also: optionally, add your OpenAI ApiKey to have the power to do image description lookups.",
   "permissions": [
     "contextMenus",
+    "downloads",
     "storage",
     "activeTab",
     "https://api.openai.com/*"
@@ -30,6 +31,9 @@
   }],
   "options_ui": {
     "page": "options.html"
+  },
+  "background": {
+    "scripts": ["background.js"]
   },
   "browser_specific_settings": {
     "gecko": {

@@ -4,7 +4,7 @@ const labels = [
   {
     id: "imageCount",
     condition: (settings, globalState) => settings.imageCountShown,
-    content: (globalState) => `${globalState.displayedImageIndex} / ${globalState.imageUrls.length - 1}`,
+    content: (globalState) => `${globalState.displayedImageIndex+1} / ${globalState.imageUrls.length }`,
     shortcut: "c",
     action: (settings) => settings.imageCountShown = !settings.imageCountShown,
     help: "Toggle display of the current image count out of total images."
@@ -69,7 +69,7 @@ const labels = [
   },
   {
     id: "navigatePrevious",
-    condition: (settings, globalState) => true,  // Always enabled but not displayed
+    condition: (settings, globalState) => true,
     action: (settings, globalState) => globalState.displayedImageIndex -= 1,
     shortcut: ["ArrowLeft", "ArrowUp"], // Using a descriptive shortcut name
     content: () => "",
@@ -77,13 +77,12 @@ const labels = [
   },
   {
     id: "navigateNext",
-    condition: (settings, globalState) => true,  // Always enabled but not displayed
+    condition: (settings, globalState) => true,
     action: (settings, globalState) => globalState.displayedImageIndex += 1,
     shortcut: ["ArrowRight", "ArrowDown"],
     content: () => "",
     help: "Navigate to the next image."
   },
-  // More navigation actions...
   {
     id: "jumpToStart",
     condition: (settings, globalState) => true,
@@ -118,7 +117,7 @@ const labels = [
   },
   {
     id: "exitGallery",
-    condition: (settings, globalState) => true,  // Always possible to exit
+    condition: (settings, globalState) => true,
     action: (settings, globalState) => globalState.doExit=true,
     shortcut: "Escape",
     content: () => "",
@@ -126,7 +125,7 @@ const labels = [
   },
   {
     id: "toggleHelp",
-    condition: (settings, globalState) => true,  // Always possible to toggle help
+    condition: (settings, globalState) => true,
     action: (settings, globalState) => {
       globalState.helpShown = !globalState.helpShown;
     },
@@ -135,22 +134,28 @@ const labels = [
     help: "Toggle help display."
   },
   {
-    id: "aiDescribeImage",
-    condition: (settings, globalState) => true,  // Assume AI description is always available
-    action: (settings, globalState) => ai.DescribeImageAI(),
+    id: "fastSaveImage",
+    condition: (settings, globalState) => true,
+    action: (settings, globalState) => globalState.doSave=true,
     shortcut: "s",
     content: () => "",
-    help: "Activate AI to describe the image."
+    help: "Fast Save Image (immediately) without 'save as...' popup."
   },
-];
-
-
-
-const imageNavigationShortcuts = [
-  { keycodes: [33], action: (settings) => settings.displayedImageIndex -= 5 }, // PgUp
-  { keycodes: [34], action: (settings) => settings.displayedImageIndex += 5 }, // PgDn
-  { keycodes: [35], action: (settings, globalState) => settings.displayedImageIndex = globalState.imageUrls.length - 1 }, // End
-  { keycodes: [36], action: (settings) => settings.displayedImageIndex = 0 }, // Home
-  { keycodes: [37, 38], action: (settings) => settings.displayedImageIndex -= 1 }, // Left, Up
-  { keycodes: [39, 40], action: (settings) => settings.displayedImageIndex += 1 }, // Right, Down
+  {
+    id: "labelForDownloadedImage",
+    condition: (settings, globalState) => globalState.doSave==true,
+    action: (settings, globalState) => {},
+    shortcut: [],
+    content: () => "",
+    temporary: true,
+    help: "",
+  },
+  {
+    id: "aiDescribeImage",
+    condition: (settings, globalState) => true,
+    action: (settings, globalState) => ai.DescribeImageAI(),
+    shortcut: "q",
+    content: () => "",
+    help: "Activate AI to describe the image."
+  }
 ];
