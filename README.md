@@ -1,3 +1,11 @@
+v0.21 changes:
+1. fast save of an image using a keyboard shortcut (s), so you don't have to right-click save and pick the location - it just saves to your default download folder.  there are also notifs.
+2. fixed webm display, which had temporarily been broken!
+3. fixed preloading so hopefully it works better now. Still doesn't work for webm, really.
+4. reset vertical scroll position to top when exiting the gallery
+5. improved appearance of the font.
+6. switched indexing on count variable from 0-based to 1-based.
+
 # image-gallery-generator
 
 # TODO

@@ -153,7 +153,7 @@ const labels = [
   {
     id: "aiDescribeImage",
     condition: (settings, globalState) => true,
-    action: (settings, globalState) => ai.DescribeImageAI(),
+    action: (settings, globalState) => ai.DescribeImageAI(settings, globalState),
     shortcut: "q",
     content: () => "",
     help: "Activate AI to describe the image."

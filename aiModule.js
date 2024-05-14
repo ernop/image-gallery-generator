@@ -12,7 +12,8 @@ let ai = {
     displayInternalError("AI");
 
     if (!util.apiKeyFormatIsValid(settingsModule.settings.apiKey)){
-      alert("apikey format is invalid.");
+      return;
+      //alert("apikey format is invalid. Adjust it in the extension settings page. Apologies for the popup!");
     }
     let apiUrl = "https://api.openai.com/v1/chat/completions";
     let imageUrl = imageUrls[displayedImageIndex];

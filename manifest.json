@@ -2,7 +2,7 @@
   "manifest_version": 2,
   "name": "4Chan Gallery Viewer WG",
   "short_name": "GalleryView",
-  "version": "0.0.19",
+  "version": "0.0.21",
   "description": "Adds gallery button to 4chan wg board thread views, with keyboard shortcuts. Also: optionally, add your OpenAI ApiKey to have the power to do image description lookups.",
   "permissions": [
     "contextMenus",

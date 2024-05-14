@@ -86,7 +86,6 @@
           <div id="blackBackground">
             <img id="targetImg" src="" />
             <video controls="true" autoplay id="targetVideo" src=""></video>
-            <button id="fastSaveButton">Fast Save</button>
             <div id="output"></div>
           </div>
         </div>
@@ -226,46 +225,6 @@
     return ctext ? `<div id="${id}" class='label outlined-text'>${ctext}</div>` : '';
   }
 
-  let debounce='';
-
-  function handleShortcut(e) {
-    const key = e.key;
-    if (key==debounce){
-      return;
-    }
-
-    for (const label of labels) {
-      if ((Array.isArray(label.shortcut) && label.shortcut.includes(key)) || label.shortcut === key) {
-        debounce=key;
-        label.action(settingsModule.settings, globalState);
-        redraw();
-
-        if (globalState.doSave){
-          //big hack, using the label's action to screw with globalState to force a save.
-          fastSaveImage();
-        }
-        e.preventDefault();
-
-        if (globalState.doExit) {
-          backToNormal();
-          globalState.doExit = false;
-        }
-        break;
-      }
-    }
-    debounce='';
-  }
-
-  function setKeyboardShortcuts() {
-    $(document).keydown(handleShortcut);
-    document.addEventListener('wheel', handleMouseWheel);
-  }
-
-  function handleMouseWheel(e) {
-    globalState.displayedImageIndex += e.deltaY < 0 ? -1 : 1;
-    redraw();
-    e.stopPropagation();
-  }
 
   const downloadedAlready = {};
   let downloadingFilename="";
@@ -310,6 +269,49 @@
       }
     }
   }
+
+  function setKeyboardShortcuts() {
+    $(document).keydown(handleShortcut);
+    document.addEventListener('wheel', handleMouseWheel);
+  }
+
+  function handleMouseWheel(e) {
+    globalState.displayedImageIndex += e.deltaY < 0 ? -1 : 1;
+    redraw();
+    e.stopPropagation();
+  }
+
+  let debounce='';
+
+  function handleShortcut(e) {
+    const key = e.key;
+    if (key==debounce){
+      return;
+    }
+
+    for (const label of labels) {
+      if ((Array.isArray(label.shortcut) && label.shortcut.includes(key)) || label.shortcut === key) {
+        debounce=key;
+        label.action(settingsModule.settings, globalState);
+        redraw();
+
+        if (globalState.doSave){
+          //big hack, using the label's action to screw with globalState to force a save.
+          fastSaveImage();
+        }
+        e.preventDefault();
+
+        if (globalState.doExit) {
+          backToNormal();
+          globalState.doExit = false;
+        }
+        break;
+      }
+    }
+    debounce='';
+  }
+
+
 
   setup();
 })();
