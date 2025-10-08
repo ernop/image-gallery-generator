@@ -21,22 +21,190 @@
   padding: 5px;
 }
 
-#helpButton {
-  position: fixed;
-  bottom: 5px;
-  left: 5px;
-  z-index: 203;
-}
-
+/* ========== Labels ========== */
 .label {
   opacity: 1;
   white-space: pre;
 }
 
-#postText {
+#postTextZone {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 800px;
+  padding: 10px 20px;
+  background-color: rgba(0, 0, 0, 0.7);
+  border-radius: 5px;
   white-space: pre-wrap;
   word-wrap: break-word;
-  max-width: 600px;
+  z-index: 201;
+  text-align: center;
+}
+
+/* ========== Help Menu System ========== */
+/* Z-index hierarchy:
+ * 100-200: Gallery background and images
+ * 201: Post text zone (bottom center)
+ * 202: Label zone (top left)
+ * 9999: Gallery wrapper (#galleryViewWrapper)
+ * 10000: Help buttons
+ * 10001: Help menus
+ */
+
+.help-menu-button {
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px 8px;
+  background-color: rgba(0, 0, 0, 0.7);
+  border-radius: 4px;
+  color: white;
+  text-shadow: 1px 1px 2px black;
+}
+
+.help-menu-button:hover {
+  background-color: rgba(80, 80, 80, 0.9);
+}
+
+.help-menu-panel {
+  background: rgba(50, 50, 50, 0.95);
+  padding: 15px;
+  border-radius: 5px;
+  min-width: 300px;
+  border: 2px solid rgba(255, 215, 0, 0.3);
+}
+
+.help-menu-wrapper {
+  position: fixed;
+  z-index: 10001;
+}
+
+#displayOptionsButton {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 10000;
+}
+
+#displayOptionsMenu {
+  top: 50px;
+  right: 10px;
+}
+
+#keyboardShortcutsButton {
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  z-index: 10000;
+}
+
+#keyboardShortcutsMenu {
+  bottom: 40px;
+  right: 10px;
+}
+
+.help-menu-panel h3 {
+  color: #FFD700;
+  text-shadow: 2px 2px 4px black;
+  border-bottom: 2px solid #FFD700;
+  padding-bottom: 3px;
+  margin: 0 0 10px 0;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.help-menu-panel h3 small {
+  font-size: 12px;
+  color: rgba(255, 215, 0, 0.7);
+  font-weight: normal;
+}
+
+.help-menu-panel ul {
+  margin: 0;
+  padding: 0;
+  list-style-type: none;
+}
+
+.help-menu-panel li {
+  margin: 4px 0;
+  padding: 3px 5px;
+  color: white;
+  text-shadow: 1px 1px 2px black;
+}
+
+.help-item-toggleable {
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background-color 0.2s;
+  position: relative;
+  user-select: none;
+}
+
+.help-item-toggleable:hover {
+  background-color: rgba(255, 215, 0, 0.3);
+}
+
+.help-item-just-clicked {
+  pointer-events: none;
+}
+
+.drag-handle {
+  cursor: grab;
+  margin-right: 5px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+}
+
+.help-item-toggleable.dragging {
+  opacity: 0.5;
+  background-color: rgba(255, 215, 0, 0.5);
+}
+
+.help-item-toggleable kbd {
+  background-color: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+  padding: 2px 5px;
+  font-size: 12px;
+  margin: 0 3px;
+}
+
+.status-indicator {
+  font-size: 16px;
+  margin-right: 5px;
+}
+
+.status-shown {
+  color: #00ff00;
+  text-shadow: 0 0 3px #00ff00;
+}
+
+.status-hidden {
+  color: #ff0000;
+  text-shadow: 0 0 3px #ff0000;
+}
+
+/* ========== Help Preview Effects ========== */
+.help-highlight {
+  background-color: rgba(255, 255, 0, 0.2);
+  box-shadow: 0 0 10px yellow;
+  border-radius: 3px;
+}
+
+.help-temp-preview {
+  opacity: 0.6;
+  animation: pulse-highlight 0.8s ease-in-out infinite;
+}
+
+@keyframes pulse-highlight {
+  0%, 100% { 
+    box-shadow: 0 0 10px yellow;
+    opacity: 0.5;
+  }
+  50% { 
+    box-shadow: 0 0 20px yellow;
+    opacity: 0.7;
+  }
 }
 
 #blackBackground {

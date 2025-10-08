@@ -44,11 +44,15 @@ let settingsModule = {
     }
 
     browser.storage.sync.set({ settings: toSaveSettings }).then(() => {
-        settingsModule.optionsHtmlPageInfo(SUCCESS.SETTINGS_SAVED);
+        if (onSettingsConfigPage) {
+          settingsModule.optionsHtmlPageInfo(SUCCESS.SETTINGS_SAVED);
+        }
         settingsModule.lastSavedSettings=toSaveSettings;
         console.log('Settings saved successfully');
     }).catch((error) => {
-        settingsModule.optionsHtmlPageInfo(`${ERRORS.SETTINGS_SAVE_FAILED}: ${error.message}`);
+        if (onSettingsConfigPage) {
+          settingsModule.optionsHtmlPageInfo(`${ERRORS.SETTINGS_SAVE_FAILED}: ${error.message}`);
+        }
         console.error(ERRORS.SETTINGS_SAVE_FAILED, error);
     })
   },
@@ -91,6 +95,7 @@ let settingsModule = {
       helpButtonShown: true,
       postTimeShown: false,
       postTextShown: false,
+      displayOrder: [],
     };
 
     return Object.assign({}, defaultSettings, settings);

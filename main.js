@@ -19,7 +19,8 @@
   };
 
   const globalState = {
-    helpShown: false,
+    displayOptionsShown: false,
+    keyboardShortcutsShown: false,
     imageUrls: [],
     imageTypes: [],
     originalImageNames: [],
@@ -284,25 +285,235 @@
     redrawLabels();
   }
 
+  function setupDragAndDrop() {
+    const list = document.getElementById('displayOptionsList');
+    if (!list) return;
+    
+    let draggedItem = null;
+    
+    list.addEventListener('dragstart', function(e) {
+      draggedItem = e.target.closest('li');
+      if (draggedItem) {
+        e.dataTransfer.effectAllowed = 'move';
+        draggedItem.classList.add('dragging');
+      }
+    });
+    
+    list.addEventListener('dragend', function(e) {
+      if (draggedItem) {
+        draggedItem.classList.remove('dragging');
+      }
+    });
+    
+    list.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      const afterElement = getDragAfterElement(list, e.clientY);
+      if (afterElement == null) {
+        list.appendChild(draggedItem);
+      } else {
+        list.insertBefore(draggedItem, afterElement);
+      }
+    });
+    
+    list.addEventListener('drop', function(e) {
+      e.preventDefault();
+      const newOrder = [];
+      list.querySelectorAll('li').forEach(li => {
+        const labelId = li.getAttribute('data-label-id');
+        if (labelId) newOrder.push(labelId);
+      });
+      settingsModule.settings.displayOrder = newOrder;
+      settingsModule.saveSettings(false);
+    });
+  }
+  
+  function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('li:not(.dragging)')];
+    
+    return draggableElements.reduce((closest, child) => {
+      const box = child.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      
+      if (offset < 0 && offset > closest.offset) {
+        return { offset: offset, element: child };
+      } else {
+        return closest;
+      }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+  }
+  
+  let redrawLabelsPending = false;
+  
   function redrawLabels() {
     if (!globalState.galleryOn) return;
+    if (redrawLabelsPending) {
+      return;
+    }
+    
+    redrawLabelsPending = true;
+    setTimeout(() => {
+      redrawLabelsNow();
+      redrawLabelsPending = false;
+    }, 0);
+  }
+  
+  function redrawLabelsNow() {
+    if (!globalState.galleryOn) return;
+    
     $(document).find(".label").remove();
-    const labelHtml = labels.filter(label => label.condition(settingsModule.settings, globalState))
-      .map(label => createLabel(label.id, label.content, label.temporary))
+    $(document).find(".help-menu-button").remove();
+    $(document).find(".help-menu-wrapper").remove();
+    $("#postTextZone").remove();
+    
+    const displayOrder = settingsModule.settings.displayOrder || [];
+    
+    const visibleLabels = labels.filter(label => {
+      return label.condition(settingsModule.settings, globalState) && 
+             label.id !== 'displayOptionsMenu' && 
+             label.id !== 'keyboardShortcutsMenu' &&
+             label.id !== 'postText';
+    });
+    
+    const sortedLabels = [...visibleLabels].sort((a, b) => {
+      const indexA = displayOrder.indexOf(a.id);
+      const indexB = displayOrder.indexOf(b.id);
+      if (indexA === -1 && indexB === -1) return 0;
+      if (indexA === -1) return 1;
+      if (indexB === -1) return -1;
+      return indexA - indexB;
+    });
+    
+    const labelHtml = sortedLabels.map(label => createLabel(label.id, label.content, label.temporary))
       .join('');
 
-    const helpButton = settingsModule.settings.helpButtonShown 
-      ? '<div id="helpButton" class="label outlined-text" style="cursor: pointer;">?</div>' 
-      : '';
+    $("#labelZone").html(labelHtml);
     
-    $("#labelZone").html(labelHtml + helpButton);
+    if (settingsModule.settings.postTextShown) {
+      const postTextLabel = labels.find(l => l.id === 'postText');
+      if (postTextLabel && postTextLabel.condition(settingsModule.settings, globalState)) {
+        const text = globalState.postTexts[globalState.displayedImageIndex];
+        if (text) {
+          const postTextHtml = `<div id="postTextZone" class="outlined-text">${text}</div>`;
+          $("#blackBackground").append(postTextHtml);
+        }
+      }
+    }
     
-    if (settingsModule.settings.helpButtonShown) {
-      $("#helpButton").click(function() {
-        updateGalleryState({ helpShown: !globalState.helpShown });
+    if (settingsModule.settings.helpButtonShown && !globalState.distractionFreeMode) {
+      const displayOptionsButton = $('<div id="displayOptionsButton" class="help-menu-button">⚙</div>');
+      displayOptionsButton.click(function(e) {
+        e.stopPropagation();
+        updateGalleryState({ 
+          displayOptionsShown: !globalState.displayOptionsShown,
+          keyboardShortcutsShown: false
+        });
         redraw();
       });
+      $('body').append(displayOptionsButton);
+      
+      const keyboardShortcutsButton = $('<div id="keyboardShortcutsButton" class="help-menu-button">?</div>');
+      keyboardShortcutsButton.click(function(e) {
+        e.stopPropagation();
+        updateGalleryState({ 
+          keyboardShortcutsShown: !globalState.keyboardShortcutsShown,
+          displayOptionsShown: false
+        });
+        redraw();
+      });
+      $('body').append(keyboardShortcutsButton);
     }
+    
+    if (globalState.displayOptionsShown && !globalState.distractionFreeMode) {
+      const displayOptionsLabel = labels.find(l => l.id === 'displayOptionsMenu');
+      if (displayOptionsLabel) {
+        try {
+          const content = displayOptionsLabel.content(globalState);
+          const menuHtml = `<div id="displayOptionsMenu" class="help-menu-wrapper">${content}</div>`;
+          $('body').append(menuHtml);
+        } catch (error) {
+          console.error('Error creating display options menu:', error);
+        }
+      }
+    }
+    
+    if (globalState.keyboardShortcutsShown && !globalState.distractionFreeMode) {
+      const keyboardShortcutsLabel = labels.find(l => l.id === 'keyboardShortcutsMenu');
+      if (keyboardShortcutsLabel) {
+        try {
+          const content = keyboardShortcutsLabel.content(globalState);
+          const menuHtml = `<div id="keyboardShortcutsMenu" class="help-menu-wrapper">${content}</div>`;
+          $('body').append(menuHtml);
+        } catch (error) {
+          console.error('Error creating keyboard shortcuts menu:', error);
+        }
+      }
+    }
+    
+    setupDragAndDrop();
+    
+    $(".help-item-toggleable").off('click mouseenter mouseleave').on('click', function() {
+      const $item = $(this);
+      const labelId = $item.attr('data-label-id');
+      const settingKey = $item.attr('data-setting-key');
+      
+      $(`#${labelId}`).removeClass('help-highlight');
+      $(`#${labelId}_temp`).remove();
+      
+      if (settingKey && settingsModule.settings.hasOwnProperty(settingKey)) {
+        settingsModule.settings[settingKey] = !settingsModule.settings[settingKey];
+        settingsModule.saveSettings(false);
+        
+        $item.addClass('help-item-just-clicked');
+        setTimeout(() => {
+          $item.removeClass('help-item-just-clicked');
+        }, 500);
+        
+        redraw();
+      }
+    }).on('mouseenter', function() {
+      const $item = $(this);
+      if ($item.hasClass('help-item-just-clicked')) return;
+      
+      const labelId = $item.attr('data-label-id');
+      const settingKey = $item.attr('data-setting-key');
+      const isShown = settingsModule.settings[settingKey];
+      
+      if (isShown) {
+        $(`#${labelId}`).addClass('help-highlight');
+      } else {
+        const label = labels.find(l => l.id === labelId);
+        if (label && label.content && label.id !== 'postText') {
+          try {
+            const tempContent = typeof label.content === 'function' ? label.content(globalState) : label.content;
+            if (tempContent) {
+              const tempLabel = $(`<div id="${labelId}_temp" class="label outlined-text help-highlight help-temp-preview">${tempContent}</div>`);
+              
+              const labelIndex = labels.findIndex(l => l.id === labelId);
+              const visibleLabels = labels.filter((l, idx) => 
+                idx < labelIndex && 
+                l.condition && 
+                l.condition(settingsModule.settings, globalState) &&
+                l.id !== 'displayOptionsMenu' &&
+                l.id !== 'keyboardShortcutsMenu'
+              );
+              
+              if (visibleLabels.length === 0) {
+                $("#labelZone .label").first().before(tempLabel);
+              } else {
+                const lastVisibleId = visibleLabels[visibleLabels.length - 1].id;
+                $(`#${lastVisibleId}`).after(tempLabel);
+              }
+            }
+          } catch (error) {
+            console.warn('Could not generate preview for', labelId, error);
+          }
+        }
+      }
+    }).on('mouseleave', function() {
+      const labelId = $(this).attr('data-label-id');
+      $(`#${labelId}`).removeClass('help-highlight');
+      $(`#${labelId}_temp`).remove();
+    });
     
     $(".fadeout-label").each(function() {
       const $label = $(this);
@@ -376,7 +587,8 @@
   function handleMouseWheel(e) {
     updateGalleryState({
       displayedImageIndex: globalState.displayedImageIndex + (e.deltaY < 0 ? -1 : 1),
-      helpShown: false
+      displayOptionsShown: false,
+      keyboardShortcutsShown: false
     }, true);
     e.stopPropagation();
   }
@@ -404,7 +616,8 @@
     if (globalState.distractionFreeMode && !maintainDistractionFreeModeKeys.includes(currentKey)) {
       updateGalleryState({ 
         distractionFreeMode: false,
-        helpShown: false
+        displayOptionsShown: false,
+        keyboardShortcutsShown: false
       });
       toggleDistractionFreeUI(false);
       redraw();
@@ -416,9 +629,13 @@
     }
 
     for (const label of labels) {
+      if (!label.shortcut) continue;
+      
       const shortcuts = Array.isArray(label.shortcut) ? label.shortcut : [label.shortcut];
       
       for (const shortcut of shortcuts) {
+        if (!shortcut) continue;
+        
         let matches = false;
         
         if (shortcut.startsWith('Ctrl+')) {
