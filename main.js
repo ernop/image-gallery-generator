@@ -29,7 +29,8 @@
     preloadCount: 0,
     maxPreloadCount: PRELOAD_COUNT,
     galleryOn: false,
-    doSave:false,
+    doSave: false,
+    doExit: false,
     distractionFreeMode: false,
   };
 
@@ -190,7 +191,9 @@
       displayedImageIndex: 0,
       redrawCount: 0,
       relatedCount: 0,
-      preloadCount: 0
+      preloadCount: 0,
+      doSave: false,
+      doExit: false
     });
   }
 
@@ -351,7 +354,8 @@
 
   function handleMouseWheel(e) {
     updateGalleryState({
-      displayedImageIndex: globalState.displayedImageIndex + (e.deltaY < 0 ? -1 : 1)
+      displayedImageIndex: globalState.displayedImageIndex + (e.deltaY < 0 ? -1 : 1),
+      helpShown: false
     }, true);
     e.stopPropagation();
   }
@@ -364,9 +368,19 @@
       return;
     }
 
-    const maintainDistractionFreeModeKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 's'];
+    const maintainDistractionFreeModeKeys = [
+      'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 's', 'PageUp', 'PageDown',
+      'Ctrl+ArrowLeft', 'Ctrl+ArrowRight', 'Ctrl+ArrowUp', 'Ctrl+ArrowDown', 
+      'Ctrl+PageUp', 'Ctrl+PageDown'
+    ];
+    if (key == "Control") {
+      return;
+    }
     
-    if (globalState.distractionFreeMode && !maintainDistractionFreeModeKeys.includes(key)) {
+    const currentKey = e.ctrlKey ? `Ctrl+${key}` : key;
+    
+
+    if (globalState.distractionFreeMode && !maintainDistractionFreeModeKeys.includes(currentKey)) {
       updateGalleryState({ 
         distractionFreeMode: false,
         helpShown: false

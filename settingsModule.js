@@ -106,11 +106,8 @@ let settingsModule = {
   },
 
   applySettingsToConfigurationPage: function() {
-    if (settingsModule.settings && settingsModule.settings!={}){
-      //because this is what we just loaded, even though it may not be what should be saved, since they may have been missing defaults.
-      settingsModule.lastSavedSettings=settingsModule.settings;
-    }
     const settingsToRestore = settingsModule.privateApplyDefaultSettings(settingsModule.settings || {});
+    settingsModule.lastSavedSettings = settingsToRestore;
     //hmm what happens if i add more settings later, or change them. how does that fit with prior extension users who are upgrading?
     document.querySelector("#imageCountShown").checked = settingsToRestore.imageCountShown;
     document.querySelector("#imageFilenameShown").checked = settingsToRestore.imageFilenameShown;
@@ -135,6 +132,19 @@ let settingsModule = {
   setupOptionsHtmlPage:async function(){
     await settingsModule.loadSettings();
     console.log("setting up options page, loaded settings (internal):");
+
+    //load the old settings first, before attaching change listeners
+    try{
+      settingsModule.applySettingsToConfigurationPage();
+    } catch (error) {
+      settingsModule.optionsHtmlPageInfo(`Failed to restore saved settings. Using current values. Error: ${error.message}`);
+      console.error('Error restoring settings to UI:', error);
+
+      //default to what they are now at least.
+      settingsModule.lastSavedSettings = settingsModule.pullSettingsFromHtml();
+    }
+
+    // Now attach change listeners after initial values are set
     document.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
       checkbox.addEventListener('change', () => {
         const candidateSettings = settingsModule.pullSettingsFromHtml();
@@ -154,17 +164,6 @@ let settingsModule = {
           console.error('Error saving settings:', error);
       }
     });
-
-    //load the old settings
-    try{
-      settingsModule.applySettingsToConfigurationPage();
-    } catch (error) {
-      settingsModule.optionsHtmlPageInfo(`Failed to restore saved settings. Using current values. Error: ${error.message}`);
-      console.error('Error restoring settings to UI:', error);
-
-      //default to what they are now at least.
-      settingsModule.lastSavedSettings = settingsModule.pullSettingsFromHtml();
-    }
   }
 }
 
