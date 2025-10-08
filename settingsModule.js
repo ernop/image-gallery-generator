@@ -88,6 +88,7 @@ let settingsModule = {
       imageMegapixelsShown: false,
       preloadLabelShown: false,
       anyImagePreloadedLabelShown: false,
+      helpButtonShown: true,
     };
 
     return Object.assign({}, defaultSettings, settings);
@@ -101,6 +102,7 @@ let settingsModule = {
       imageMegapixelsShown: document.querySelector("#imageMegapixelsShown").checked,
       preloadLabelShown: document.querySelector("#preloadLabelShown").checked,
       anyImagePreloadedLabelShown: document.querySelector("#anyImagePreloadedLabelShown").checked,
+      helpButtonShown: document.querySelector("#helpButtonShown").checked,
     };
     return settings;
   },
@@ -115,6 +117,7 @@ let settingsModule = {
     document.querySelector("#imageMegapixelsShown").checked = settingsToRestore.imageMegapixelsShown;
     document.querySelector("#preloadLabelShown").checked = settingsToRestore.preloadLabelShown;
     document.querySelector("#anyImagePreloadedLabelShown").checked = settingsToRestore.anyImagePreloadedLabelShown;
+    document.querySelector("#helpButtonShown").checked = settingsToRestore.helpButtonShown;
   },
 
   setSettingsAsHavingUnsavedChanges: function(val){

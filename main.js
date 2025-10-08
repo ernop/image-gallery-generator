@@ -274,14 +274,18 @@
       .map(label => createLabel(label.id, label.content, label.temporary))
       .join('');
 
-    const helpButton = '<div id="helpButton" class="label outlined-text" style="cursor: pointer;">?</div>';
+    const helpButton = settingsModule.settings.helpButtonShown 
+      ? '<div id="helpButton" class="label outlined-text" style="cursor: pointer;">?</div>' 
+      : '';
     
     $("#labelZone").html(labelHtml + helpButton);
     
-    $("#helpButton").click(function() {
-      updateGalleryState({ helpShown: !globalState.helpShown });
-      redraw();
-    });
+    if (settingsModule.settings.helpButtonShown) {
+      $("#helpButton").click(function() {
+        updateGalleryState({ helpShown: !globalState.helpShown });
+        redraw();
+      });
+    }
     
     $(".fadeout-label").each(function() {
       const $label = $(this);
@@ -410,6 +414,11 @@
         if (matches) {
           debounce=key;
           label.action(settingsModule.settings, globalState);
+          
+          if (label.modifiesSettings) {
+            settingsModule.saveSettings(false);
+          }
+          
           redraw();
 
           if (globalState.doSave){

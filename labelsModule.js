@@ -14,6 +14,7 @@ const labels = [
     },
     shortcut: "c",
     action: (settings) => settings.imageCountShown = !settings.imageCountShown,
+    modifiesSettings: true,
     help: "Toggle display of the current image count out of total images."
   },
   {
@@ -22,6 +23,7 @@ const labels = [
     content: (globalState) => globalState.preloadCount > 0 ? "." : "",
     shortcut: "a",
     action: (settings) => settings.anyImagePreloadedLabelShown = !settings.anyImagePreloadedLabelShown,
+    modifiesSettings: true,
     help: "Toggle display of a dot when the next image is preloaded."
   },
   {
@@ -30,6 +32,7 @@ const labels = [
     content: (globalState) => globalState.originalImageNames[globalState.displayedImageIndex],
     shortcut: "n",
     action: (settings) => settings.imageFilenameShown = !settings.imageFilenameShown,
+    modifiesSettings: true,
     help: "Shows the file name of the current image."
   },
   {
@@ -41,6 +44,7 @@ const labels = [
     },
     shortcut: "r",
     action: (settings) => settings.imageResolutionShown = !settings.imageResolutionShown,
+    modifiesSettings: true,
     help: "Toggle display of the image's resolution."
   },
   {
@@ -52,6 +56,7 @@ const labels = [
     },
     shortcut: "m",
     action: (settings) => settings.imageMegapixelsShown = !settings.imageMegapixelsShown,
+    modifiesSettings: true,
     help: "Toggle display of the image's megapixels."
   },
   {
@@ -60,6 +65,7 @@ const labels = [
     content: (globalState) => globalState.preloadCount,
     shortcut: "p",
     action: (settings) => settings.preloadLabelShown = !settings.preloadLabelShown,
+    modifiesSettings: true,
     help: "Toggle display of the preload count."
   },
 
