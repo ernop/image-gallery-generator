@@ -157,10 +157,11 @@
       }
     });
 
+    let galleryModeText;
     if (videoCount > 0) {
-      const galleryModeText = `GalleryMode WG ${imageCount}/${videoCount}`;
+      galleryModeText = `GalleryMode WG ${imageCount}/${videoCount}`;
     } else {
-      const galleryModeText = `GalleryMode WG ${imageCount}`;
+      galleryModeText = `GalleryMode WG ${imageCount}`;
     }
     const galleryLink = $('.navLinks .galleryOn');
 
@@ -311,14 +312,57 @@
     const thisImageType = globalState.imageTypes[globalState.displayedImageIndex];
     const targetImg = $("#targetImg");
     const targetVideo = $("#targetVideo");
+    const currentUrl = globalState.imageUrls[globalState.displayedImageIndex];
 
     try {
       if (thisImageType === "video") {
         targetImg.hide();
-        targetVideo.show().attr("src", globalState.imageUrls[globalState.displayedImageIndex]);
+        
+        // Check if already loaded in any preload slot
+        let videoReady = false;
+        for (let i = 0; i < globalState.maxPreloadCount; i++) {
+          const preloadVideo = $(`#targetVideo_preload${i}`);
+          if (preloadVideo.length && preloadVideo.attr('src') === currentUrl && preloadVideo[0].readyState >= 3) {
+            videoReady = true;
+            break;
+          }
+        }
+        
+        if (videoReady) {
+          targetVideo.show().attr("src", currentUrl);
+        } else {
+          // Hide and load, show when ready
+          targetVideo.hide().attr("src", currentUrl);
+          targetVideo.off('canplay.display').one('canplay.display', () => {
+            if (globalState.imageUrls[globalState.displayedImageIndex] === currentUrl && globalState.galleryOn) {
+              targetVideo.show();
+            }
+          });
+        }
       } else {
-        targetImg.show().attr("src", globalState.imageUrls[globalState.displayedImageIndex]);
         targetVideo.hide();
+        
+        // Check if already loaded in any preload slot
+        let imageReady = false;
+        for (let i = 0; i < globalState.maxPreloadCount; i++) {
+          const preloadImg = $(`#targetImg_preload${i}`);
+          if (preloadImg.length && preloadImg.attr('src') === currentUrl && util.isImageDone(preloadImg)) {
+            imageReady = true;
+            break;
+          }
+        }
+        
+        if (imageReady) {
+          targetImg.show().attr("src", currentUrl);
+        } else {
+          // Hide and load, show when ready
+          targetImg.hide().attr("src", currentUrl);
+          targetImg.off('load.display').one('load.display', () => {
+            if (globalState.imageUrls[globalState.displayedImageIndex] === currentUrl && globalState.galleryOn) {
+              targetImg.show();
+            }
+          });
+        }
       }
     } catch (error) {
       showError(ERRORS.IMAGE_LOAD_FAILED, error);
