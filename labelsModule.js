@@ -60,6 +60,52 @@ const labels = [
     help: "Toggle display of the image's megapixels."
   },
   {
+    id: "postTime",
+    condition: (settings, globalState) => settings.postTimeShown,
+    content: (globalState) => {
+      const timestamp = globalState.postTimestamps[globalState.displayedImageIndex];
+      if (!timestamp) return '';
+      
+      const postDate = new Date(parseInt(timestamp) * 1000);
+      const now = new Date();
+      const diffMs = now - postDate;
+      const diffSeconds = Math.floor(diffMs / 1000);
+      const diffMinutes = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+      
+      if (diffSeconds < 60) {
+        return diffSeconds === 1 ? '1 second ago' : `${diffSeconds} seconds ago`;
+      }
+      if (diffMinutes < 60) {
+        return diffMinutes === 1 ? '1 minute ago' : `${diffMinutes} minutes ago`;
+      }
+      if (diffHours < 24) {
+        return diffHours === 1 ? '1 hour ago' : `${diffHours} hours ago`;
+      }
+      if (diffDays < 30) {
+        return diffDays === 1 ? '1 day ago' : `${diffDays} days ago`;
+      }
+      return postDate.toLocaleDateString();
+    },
+    shortcut: "t",
+    action: (settings) => settings.postTimeShown = !settings.postTimeShown,
+    modifiesSettings: true,
+    help: "Toggle display of when the post was made."
+  },
+  {
+    id: "postText",
+    condition: (settings, globalState) => settings.postTextShown,
+    content: (globalState) => {
+      const text = globalState.postTexts[globalState.displayedImageIndex];
+      return text || '';
+    },
+    shortcut: "x",
+    action: (settings) => settings.postTextShown = !settings.postTextShown,
+    modifiesSettings: true,
+    help: "Toggle display of the post text/comment."
+  },
+  {
     id: "preloadLabel",
     condition: (settings, globalState) => settings.preloadLabelShown,
     content: (globalState) => globalState.preloadCount,

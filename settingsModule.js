@@ -18,18 +18,18 @@ let settingsModule = {
     try{
       await browser.storage.sync.get("settings").then((result) => {
         if (result.settings) {
-          Object.assign(settingsModule.settings, result.settings);
+          settingsModule.settings = settingsModule.privateApplyDefaultSettings(result.settings);
           console.log('Settings loaded successfully');
         }else{
           console.info('No saved settings found, using defaults');
           settingsModule.optionsHtmlPageInfo("No saved settings found. Using defaults.");
+          settingsModule.settings = settingsModule.privateApplyDefaultSettings({});
         }
       });
     }catch(error){
       console.error(ERRORS.SETTINGS_LOAD_FAILED, error);
       settingsModule.optionsHtmlPageInfo(ERRORS.SETTINGS_LOAD_FAILED);
-      let defaultGuy=settingsModule.privateApplyDefaultSettings({});
-      settingsModule.settings=defaultGuy;
+      settingsModule.settings = settingsModule.privateApplyDefaultSettings({});
     }
   },
 
@@ -89,6 +89,8 @@ let settingsModule = {
       preloadLabelShown: false,
       anyImagePreloadedLabelShown: false,
       helpButtonShown: true,
+      postTimeShown: false,
+      postTextShown: false,
     };
 
     return Object.assign({}, defaultSettings, settings);
@@ -103,6 +105,8 @@ let settingsModule = {
       preloadLabelShown: document.querySelector("#preloadLabelShown").checked,
       anyImagePreloadedLabelShown: document.querySelector("#anyImagePreloadedLabelShown").checked,
       helpButtonShown: document.querySelector("#helpButtonShown").checked,
+      postTimeShown: document.querySelector("#postTimeShown").checked,
+      postTextShown: document.querySelector("#postTextShown").checked,
     };
     return settings;
   },
@@ -118,6 +122,8 @@ let settingsModule = {
     document.querySelector("#preloadLabelShown").checked = settingsToRestore.preloadLabelShown;
     document.querySelector("#anyImagePreloadedLabelShown").checked = settingsToRestore.anyImagePreloadedLabelShown;
     document.querySelector("#helpButtonShown").checked = settingsToRestore.helpButtonShown;
+    document.querySelector("#postTimeShown").checked = settingsToRestore.postTimeShown;
+    document.querySelector("#postTextShown").checked = settingsToRestore.postTextShown;
   },
 
   setSettingsAsHavingUnsavedChanges: function(val){

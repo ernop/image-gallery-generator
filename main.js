@@ -23,6 +23,8 @@
     imageUrls: [],
     imageTypes: [],
     originalImageNames: [],
+    postTimestamps: [],
+    postTexts: [],
     displayedImageIndex: 0,
     redrawCount: 0,
     relatedCount: 0,
@@ -86,24 +88,39 @@
     globalState.imageUrls = [];
     globalState.imageTypes = [];
     globalState.originalImageNames = [];
+    globalState.postTimestamps = [];
+    globalState.postTexts = [];
 
     let imageCount = 0;
     let videoCount = 0;
 
-    $('.fileText').each(function(index) {
-      const path = $(this).find('a').attr('href');
+    $('.postContainer').each(function() {
+      const $post = $(this);
+      const $fileText = $post.find('.fileText');
+      
+      if ($fileText.length === 0) return;
+      
+      const path = $fileText.find('a').attr('href');
+      if (!path) return;
+      
+      const index = globalState.imageUrls.length;
       globalState.imageUrls.push(path);
       globalState.imageTypes[index] = util.getFileType(path);
 
-      let originalImageName = $(this).find('a').attr('title') || $(this).find('a')[0].innerHTML;
+      const originalImageName = $fileText.find('a').attr('title') || $fileText.find('a')[0].innerHTML;
       globalState.originalImageNames.push(originalImageName);
+      
+      const timestamp = $post.find('.dateTime[data-utc]').attr('data-utc') || '';
+      globalState.postTimestamps.push(timestamp);
+      
+      const postText = $post.find('.postMessage').text().trim();
+      globalState.postTexts.push(postText);
 
       if (util.getFileType(path) === 'image') {
         imageCount++;
       } else if (util.getFileType(path) === 'video') {
         videoCount++;
       }
-
     });
 
     const galleryModeText = `GalleryMode WG4 ${imageCount}/${videoCount}`;

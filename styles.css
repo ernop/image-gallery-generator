@@ -33,6 +33,12 @@
   white-space: pre;
 }
 
+#postText {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-width: 600px;
+}
+
 #blackBackground {
   z-index: 100;
   position: absolute;
