@@ -19,4 +19,10 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
     return true; // Keep the messaging channel open for sendResponse
   }
+  
+  if (message.command === 'openOptions') {
+    browser.runtime.openOptionsPage();
+    sendResponse({ status: 'success' });
+    return true;
+  }
 });

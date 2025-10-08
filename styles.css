@@ -106,6 +106,16 @@ body.gallery-mode #galleryViewWrapper {
 }
 
 /* The options page in configuration. */
+#galleryWGOptionsBody kbd {
+  background-color: #eee;
+  border: 1px solid #b4b4b4;
+  border-radius: 3px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+  padding: 2px 6px;
+  font-family: monospace;
+  font-weight: bold;
+}
+
 #galleryWGOptionsBody input {
   font-size: 1.4em;
 }
@@ -127,3 +137,4 @@ body.gallery-mode #galleryViewWrapper {
 #saveNotice[data-changed="false"] {
   display: none;
 }
+

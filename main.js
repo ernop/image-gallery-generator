@@ -30,6 +30,7 @@
     maxPreloadCount: PRELOAD_COUNT,
     galleryOn: false,
     doSave:false,
+    distractionFreeMode: false,
   };
 
   function updateGalleryState(updates, shouldRedraw = false) {
@@ -104,7 +105,7 @@
 
     });
 
-    const galleryModeText = `GalleryMode WG2 ${imageCount}/${videoCount}`;
+    const galleryModeText = `GalleryMode WG4 ${imageCount}/${videoCount}`;
     const galleryLink = $('.navLinks .galleryOn');
 
     if (galleryLink.length === 0) {
@@ -355,6 +356,18 @@
       return;
     }
 
+    const maintainDistractionFreeModeKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 's'];
+    
+    if (globalState.distractionFreeMode && !maintainDistractionFreeModeKeys.includes(key)) {
+      updateGalleryState({ distractionFreeMode: false });
+      toggleDistractionFreeUI(false);
+      
+      if (key === 'd') {
+        e.preventDefault();
+        return;
+      }
+    }
+
     for (const label of labels) {
       if ((Array.isArray(label.shortcut) && label.shortcut.includes(key)) || label.shortcut === key) {
         debounce=key;
@@ -376,6 +389,25 @@
     }
     debounce='';
   }
+
+  window.openOptionsPage = async function() {
+    try {
+      await browser.runtime.sendMessage({
+        command: 'openOptions'
+      });
+    } catch (error) {
+      console.error('Failed to open options page:', error);
+      showError('Failed to open options page');
+    }
+  };
+
+  window.toggleDistractionFreeUI = function(hide) {
+    if (hide) {
+      $("#labelZone").fadeOut(200);
+    } else {
+      $("#labelZone").fadeIn(200);
+    }
+  };
 
 
 

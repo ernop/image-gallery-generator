@@ -46,6 +46,12 @@ const apiKeyRegex = /^sk-[a-zA-Z0-9]{48}$/;
 - All error messages should use constants from `CONSTANTS.ERRORS`
 - Magic numbers should be extracted to `constants.js` with meaningful names
 
+## Keyboard Shortcuts
+
+- **Only use lowercase letters** for keyboard shortcuts (e.g., `"s"` not `["s", "S"]`)
+- The browser automatically handles case-insensitive matching for letter keys
+- Special keys like arrow keys, Escape, etc. should use their proper key names
+
 ## Testing
 
 - Focus tests on pure functions first (highest ROI)

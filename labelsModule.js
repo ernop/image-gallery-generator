@@ -69,10 +69,18 @@ const labels = [
     help: "Display this help menu."
   },
   {
+    id: "openOptions",
+    condition: (settings, globalState) => true,
+    action: (settings, globalState) => window.openOptionsPage(),
+    shortcut: "o",
+    content: () => "",
+    help: "Open options page."
+  },
+  {
     id: "navigatePrevious",
     condition: (settings, globalState) => true,
     action: (settings, globalState) => globalState.displayedImageIndex -= 1,
-    shortcut: ["ArrowLeft", "ArrowUp"], // Using a descriptive shortcut name
+    shortcut: ["ArrowLeft", "ArrowUp","MouseWheelUp"], // Using a descriptive shortcut name
     content: () => "",
     help: "Navigate to the previous image."
   },
@@ -80,7 +88,7 @@ const labels = [
     id: "navigateNext",
     condition: (settings, globalState) => true,
     action: (settings, globalState) => globalState.displayedImageIndex += 1,
-    shortcut: ["ArrowRight", "ArrowDown"],
+    shortcut: ["ArrowRight", "ArrowDown","MouseWheelDown"],
     content: () => "",
     help: "Navigate to the next image."
   },
@@ -150,5 +158,16 @@ const labels = [
     content: () => "",
     temporary: true,
     help: "",
+  },
+  {
+    id: "distractionFreeMode",
+    condition: (settings, globalState) => true,
+    action: (settings, globalState) => {
+      globalState.distractionFreeMode = !globalState.distractionFreeMode;
+      toggleDistractionFreeUI(globalState.distractionFreeMode);
+    },
+    shortcut: "d",
+    content: () => "",
+    help: "Toggle distraction-free mode (hide UI)."
   }
 ];
