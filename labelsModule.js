@@ -5,7 +5,13 @@ const labels = [
   {
     id: "imageCount",
     condition: (settings, globalState) => settings.imageCountShown,
-    content: (globalState) => `${globalState.displayedImageIndex+1} / ${globalState.imageUrls.length }`,
+    content: (globalState) => {
+      const current = globalState.displayedImageIndex + 1;
+      const total = globalState.imageUrls.length;
+      const maxDigits = total.toString().length;
+      const paddedCurrent = current.toString().padStart(maxDigits, ' ');
+      return `${paddedCurrent} / ${total}`;
+    },
     shortcut: "c",
     action: (settings) => settings.imageCountShown = !settings.imageCountShown,
     help: "Toggle display of the current image count out of total images."
@@ -62,32 +68,34 @@ const labels = [
     condition: (settings, globalState) => globalState.helpShown,
     action: (settings, globalState) => globalState.helpShown = !globalState.helpShown,
     content: (globalState) => {
-      const helpText = labels.map(label => `${label.shortcut} - ${label.help}`).join("\n");
+      const helpText = labels.map(label => {
+        const shortcutDisplay = Array.isArray(label.shortcut) ? label.shortcut.join(' ') : label.shortcut;
+        return `${shortcutDisplay} - ${label.help}`;
+      }).join("\n");
       return `<div id="${this.id}"><ul style="background: grey;">${helpText.split('\n').map(li => `<li>${li}</li>`).join("")}</ul></div>`;
     },
     shortcut: "?",
     help: "Display this help menu."
   },
-  {
-    id: "openOptions",
-    condition: (settings, globalState) => true,
-    action: (settings, globalState) => window.openOptionsPage(),
-    shortcut: "o",
-    content: () => "",
-    help: "Open options page."
-  },
+  
   {
     id: "navigatePrevious",
     condition: (settings, globalState) => true,
-    action: (settings, globalState) => globalState.displayedImageIndex -= 1,
-    shortcut: ["ArrowLeft", "ArrowUp","MouseWheelUp"], // Using a descriptive shortcut name
+    action: (settings, globalState) => {
+      globalState.displayedImageIndex -= 1;
+      globalState.helpShown = false;
+    },
+    shortcut: ["ArrowLeft", "ArrowUp","MouseWheelUp"], 
     content: () => "",
     help: "Navigate to the previous image."
   },
   {
     id: "navigateNext",
     condition: (settings, globalState) => true,
-    action: (settings, globalState) => globalState.displayedImageIndex += 1,
+    action: (settings, globalState) => {
+      globalState.displayedImageIndex += 1;
+      globalState.helpShown = false;
+    },
     shortcut: ["ArrowRight", "ArrowDown","MouseWheelDown"],
     content: () => "",
     help: "Navigate to the next image."
@@ -95,7 +103,10 @@ const labels = [
   {
     id: "jumpToStart",
     condition: (settings, globalState) => true,
-    action: (settings, globalState) => globalState.displayedImageIndex = 0,
+    action: (settings, globalState) => {
+      globalState.displayedImageIndex = 0;
+      globalState.helpShown = false;
+    },
     shortcut: ["Home"],
     content: () => "",
     help: "Jump to the first image."
@@ -103,7 +114,10 @@ const labels = [
   {
     id: "jumpToEnd",
     condition: (settings, globalState) => true,
-    action: (settings, globalState) => globalState.displayedImageIndex = globalState.imageUrls.length - 1,
+    action: (settings, globalState) => {
+      globalState.displayedImageIndex = globalState.imageUrls.length - 1;
+      globalState.helpShown = false;
+    },
     shortcut: ["End"],
     content: () => "",
     help: "Jump to the last image."
@@ -111,7 +125,10 @@ const labels = [
   {
     id: "pageUp",
     condition: (settings, globalState) => true,
-    action: (settings, globalState) => globalState.displayedImageIndex -= PAGE_JUMP_SIZE,
+    action: (settings, globalState) => {
+      globalState.displayedImageIndex -= PAGE_JUMP_SIZE;
+      globalState.helpShown = false;
+    },
     shortcut: ["PageUp"],
     content: () => "",
     help: `Jump ${PAGE_JUMP_SIZE} images back.`
@@ -119,10 +136,38 @@ const labels = [
   {
     id: "pageDown",
     condition: (settings, globalState) => true,
-    action: (settings, globalState) => globalState.displayedImageIndex += PAGE_JUMP_SIZE,
+    action: (settings, globalState) => {
+      globalState.displayedImageIndex += PAGE_JUMP_SIZE;
+      globalState.helpShown = false;
+    },
     shortcut: ["PageDown"],
     content: () => "",
     help: `Jump ${PAGE_JUMP_SIZE} images forward.`
+  },
+  {
+    id: "quadraticNavForward",
+    condition: (settings, globalState) => true,
+    action: (settings, globalState) => {
+      const lastIndex = globalState.imageUrls.length - 1;
+      const jump = Math.floor((lastIndex - globalState.displayedImageIndex) / 2);
+      globalState.displayedImageIndex += jump;
+      globalState.helpShown = false;
+    },
+    shortcut: ["Ctrl+ArrowRight", "Ctrl+ArrowDown", "Ctrl+PageDown"],
+    content: () => "",
+    help: "Jump halfway to the end."
+  },
+  {
+    id: "quadraticNavBackward",
+    condition: (settings, globalState) => true,
+    action: (settings, globalState) => {
+      const jump = Math.floor(globalState.displayedImageIndex / 2);
+      globalState.displayedImageIndex -= jump;
+      globalState.helpShown = false;
+    },
+    shortcut: ["Ctrl+ArrowLeft", "Ctrl+ArrowUp", "Ctrl+PageUp"],
+    content: () => "",
+    help: "Jump halfway to the start."
   },
   {
     id: "exitGallery",
@@ -151,15 +196,6 @@ const labels = [
     help: "Fast Save Image (immediately) without 'save as...' popup."
   },
   {
-    id: "labelForDownloadedImage",
-    condition: (settings, globalState) => globalState.doSave==true,
-    action: (settings, globalState) => {},
-    shortcut: [],
-    content: () => "",
-    temporary: true,
-    help: "",
-  },
-  {
     id: "distractionFreeMode",
     condition: (settings, globalState) => true,
     action: (settings, globalState) => {
@@ -169,5 +205,13 @@ const labels = [
     shortcut: "d",
     content: () => "",
     help: "Toggle distraction-free mode (hide UI)."
+  },
+  {
+    id: "openOptions",
+    condition: (settings, globalState) => true,
+    action: (settings, globalState) => window.openOptionsPage(),
+    shortcut: "o",
+    content: () => "",
+    help: "Open options page."
   }
 ];

@@ -23,6 +23,7 @@
 
 .label {
   opacity: 1;
+  white-space: pre;
 }
 
 #blackBackground {

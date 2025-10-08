@@ -271,7 +271,15 @@
       .map(label => createLabel(label.id, label.content, label.temporary))
       .join('');
 
-    $("#labelZone").html(labelHtml);
+    const helpButton = '<div id="helpButton" class="label outlined-text" style="cursor: pointer;">?</div>';
+    
+    $("#labelZone").html(labelHtml + helpButton);
+    
+    $("#helpButton").click(function() {
+      updateGalleryState({ helpShown: !globalState.helpShown });
+      redraw();
+    });
+    
     $(".fadeout-label").each(function() {
       const $label = $(this);
       $label.removeClass("fadeout-label");
@@ -359,8 +367,12 @@
     const maintainDistractionFreeModeKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 's'];
     
     if (globalState.distractionFreeMode && !maintainDistractionFreeModeKeys.includes(key)) {
-      updateGalleryState({ distractionFreeMode: false });
+      updateGalleryState({ 
+        distractionFreeMode: false,
+        helpShown: false
+      });
       toggleDistractionFreeUI(false);
+      redraw();
       
       if (key === 'd') {
         e.preventDefault();
@@ -369,22 +381,36 @@
     }
 
     for (const label of labels) {
-      if ((Array.isArray(label.shortcut) && label.shortcut.includes(key)) || label.shortcut === key) {
-        debounce=key;
-        label.action(settingsModule.settings, globalState);
-        redraw();
-
-        if (globalState.doSave){
-          //big hack, using the label's action to screw with globalState to force a save.
-          fastSaveImage();
+      const shortcuts = Array.isArray(label.shortcut) ? label.shortcut : [label.shortcut];
+      
+      for (const shortcut of shortcuts) {
+        let matches = false;
+        
+        if (shortcut.startsWith('Ctrl+')) {
+          const keyPart = shortcut.substring(5);
+          matches = e.ctrlKey && key === keyPart;
+        } else {
+          matches = !e.ctrlKey && key === shortcut;
         }
-        e.preventDefault();
+        
+        if (matches) {
+          debounce=key;
+          label.action(settingsModule.settings, globalState);
+          redraw();
 
-        if (globalState.doExit) {
-          backToNormal();
-          updateGalleryState({ doExit: false });
+          if (globalState.doSave){
+            //big hack, using the label's action to screw with globalState to force a save.
+            fastSaveImage();
+          }
+          e.preventDefault();
+
+          if (globalState.doExit) {
+            backToNormal();
+            updateGalleryState({ doExit: false });
+          }
+          debounce='';
+          return;
         }
-        break;
       }
     }
     debounce='';
