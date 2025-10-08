@@ -1,21 +1,33 @@
 //no dependencies.
 
+const ERRORS = {
+  SETTINGS_LOAD_FAILED: 'Failed to load settings. Using defaults.',
+  SETTINGS_SAVE_FAILED: 'Failed to save settings. Please try again.',
+};
+
+const SUCCESS = {
+  SETTINGS_SAVED: 'Settings saved successfully.',
+};
+
 let settingsModule = {
   lastSavedSettings: null,
   settings:{}, //these are the ones who should be consulted all the time and modified.
   changed:false,
   onSettingPage:true, //just a tracker if we are being called via this other in-browser configuration method.
   loadSettings:async function() { //this populates settings, called at startup.
-    //~ settingsModule.optionsHtmlPageInfo(null,"loading settings again.");
     try{
       await browser.storage.sync.get("settings").then((result) => {
         if (result.settings) {
           Object.assign(settingsModule.settings, result.settings);
+          console.log('Settings loaded successfully');
         }else{
-          settingsModule.optionsHtmlPageInfo(null,"got no settings.'");
+          console.info('No saved settings found, using defaults');
+          settingsModule.optionsHtmlPageInfo("No saved settings found. Using defaults.");
         }
       });
-    }catch{
+    }catch(error){
+      console.error(ERRORS.SETTINGS_LOAD_FAILED, error);
+      settingsModule.optionsHtmlPageInfo(ERRORS.SETTINGS_LOAD_FAILED);
       let defaultGuy=settingsModule.privateApplyDefaultSettings({});
       settingsModule.settings=defaultGuy;
     }
@@ -31,26 +43,19 @@ let settingsModule = {
       toSaveSettings = settingsModule.settings;
     }
 
-    if (!util.apiKeyFormatIsValid(toSaveSettings.apiKey) && toSaveSettings.apiKey!='' && toSaveSettings.apiKey!=undefined) {
-      settingsModule.optionsHtmlPageInfo("Invalid API key format. But we're saving it anyway because they may change the required format, and it would be very evil of this extension to just overtly refuse to save an apikey even if it were later valid.", null);
-    }
-
     browser.storage.sync.set({ settings: toSaveSettings }).then(() => {
-        settingsModule.optionsHtmlPageInfo(null, "Settings saved okay.");
+        settingsModule.optionsHtmlPageInfo(SUCCESS.SETTINGS_SAVED);
         settingsModule.lastSavedSettings=toSaveSettings;
+        console.log('Settings saved successfully');
+    }).catch((error) => {
+        settingsModule.optionsHtmlPageInfo(`${ERRORS.SETTINGS_SAVE_FAILED}: ${error.message}`);
+        console.error(ERRORS.SETTINGS_SAVE_FAILED, error);
     })
   },
 
   //a function to update the output area of the options.html page during config.
-  optionsHtmlPageInfo:function(keyRelatedMessage, generalMessage){
-    const apiKeyStatusElement = document.getElementById('apiKeyStatus');
+  optionsHtmlPageInfo:function(generalMessage){
     const output = document.getElementById('output');
-
-    if (keyRelatedMessage != null){
-      if (settingsModule.onSettingPage){
-        apiKeyStatusElement.innerHTML = `${keyRelatedMessage}<hr>${apiKeyStatusElement.innerHTML}`;
-      }
-    }
 
     if (generalMessage!= null){
       if (settingsModule.onSettingPage){
@@ -83,7 +88,6 @@ let settingsModule = {
       imageMegapixelsShown: false,
       preloadLabelShown: false,
       anyImagePreloadedLabelShown: false,
-      apiKey: ''  // Default to empty string if no key is stored
     };
 
     return Object.assign({}, defaultSettings, settings);
@@ -97,7 +101,6 @@ let settingsModule = {
       imageMegapixelsShown: document.querySelector("#imageMegapixelsShown").checked,
       preloadLabelShown: document.querySelector("#preloadLabelShown").checked,
       anyImagePreloadedLabelShown: document.querySelector("#anyImagePreloadedLabelShown").checked,
-      apiKey: document.querySelector("#apiKey").value
     };
     return settings;
   },
@@ -115,17 +118,6 @@ let settingsModule = {
     document.querySelector("#imageMegapixelsShown").checked = settingsToRestore.imageMegapixelsShown;
     document.querySelector("#preloadLabelShown").checked = settingsToRestore.preloadLabelShown;
     document.querySelector("#anyImagePreloadedLabelShown").checked = settingsToRestore.anyImagePreloadedLabelShown;
-    document.querySelector("#apiKey").value = settingsToRestore.apiKey;
-
-    //if we loaded an apikey, hide it by default.
-    const apiKeyInput = document.getElementById('apiKey');
-    const toggleApiKeyMaskButton = document.getElementById('toggleApiKeyMask');
-    if (settingsToRestore.apiKey){
-      if (apiKeyInput.type === 'text') {
-        apiKeyInput.type = 'password';
-        toggleApiKeyMaskButton.textContent = 'Show';
-      }
-    }
   },
 
   setSettingsAsHavingUnsavedChanges: function(val){
@@ -143,8 +135,6 @@ let settingsModule = {
   setupOptionsHtmlPage:async function(){
     await settingsModule.loadSettings();
     console.log("setting up options page, loaded settings (internal):");
-    const apiKeyInput = document.getElementById('apiKey');
-    const apiKeyStatusElement = document.getElementById('apiKeyStatus');
     document.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
       checkbox.addEventListener('change', () => {
         const candidateSettings = settingsModule.pullSettingsFromHtml();
@@ -152,69 +142,28 @@ let settingsModule = {
       });
     });
 
-    apiKeyInput.addEventListener('input', function(e) {
-      const candidateSettings = settingsModule.pullSettingsFromHtml();
-      settingsModule.setSettingsAsHavingUnsavedChanges(settingsModule.settingsAreDifferentThanLastSaved(candidateSettings));
-      const apiKey = apiKeyInput.value.trim();
-      if (util.apiKeyFormatIsValid(apiKey)) {
-        settingsModule.optionsHtmlPageInfo('<span style="color: green;">&#10004;</span> API key format is valid!', null);
-      } else {
-        if (apiKey !== ''){
-          settingsModule.optionsHtmlPageInfo('<span style="color: red;">&#10006;</span> API key format is invalid!', null);
-        }
-      }
-      e.stopPropagation();
-    });
-
-    //set up test button.
-    const testButton= document.getElementById('testApiKeyButton');
-    testButton.addEventListener('click', async () => {
-      console.log("testButton.addEventListener('click'");
-      const apiKey = apiKeyInput.value.trim();
-      var isUsable = await util.apiKeyIsValidWithOpenAI(apiKey);
-      if (isUsable[0]===true){
-        settingsModule.optionsHtmlPageInfo(`<span style="color: green;">&#10004;</span> API key worked when calling OpenAI; there are ${isUsable[1]} models in the list.`, null);
-      }else{
-        settingsModule.optionsHtmlPageInfo(`<span style="color: red;">&#10006;</span>${isUsable[1]}`, null);
-      }
-    });
-
-    //fix the way we mask
-    const toggleApiKeyMaskButton = document.getElementById('toggleApiKeyMask');
-    toggleApiKeyMaskButton.addEventListener('click', () => {
-      if (apiKeyInput.type === 'password') {
-        apiKeyInput.type = 'text';
-        toggleApiKeyMaskButton.textContent = 'Hide';
-      } else {
-        apiKeyInput.type = 'password';
-        toggleApiKeyMaskButton.textContent = 'Show';
-      }
-    });
-
-    document.querySelector("form").addEventListener("submit", function(){
+    document.querySelector("form").addEventListener("submit", function(e){
+      e.preventDefault();
       try{
           settingsModule.saveSettings(true);
           document.querySelector("button[type='submit']").dataset.changed = 'false';
           document.querySelector("#saveNotice").dataset.changed = 'false';
           changed=false;
       } catch (error) {
-          settingsModule.optionsHtmlPageInfo(null, `failed to save options. ${error}`);
+          settingsModule.optionsHtmlPageInfo(`${ERRORS.SETTINGS_SAVE_FAILED}: ${error.message}`);
+          console.error('Error saving settings:', error);
       }
     });
 
-    //load the old settings and fire initial validation.
+    //load the old settings
     try{
       settingsModule.applySettingsToConfigurationPage();
-      //fake input event to force checking apiKey format even on load.
-      //still weird, this should happen automatically since we theoretically have set up the form already, and then restoreSettings
-      //is sticking stuff in the input, which should trigger the automatic checking...
-      document.getElementById('apiKey').dispatchEvent(new Event('input'));
     } catch (error) {
-      settingsModule.optionsHtmlPageInfo(null, "failed to restore options."+ error)
+      settingsModule.optionsHtmlPageInfo(`Failed to restore saved settings. Using current values. Error: ${error.message}`);
+      console.error('Error restoring settings to UI:', error);
 
       //default to what they are now at least.
       settingsModule.lastSavedSettings = settingsModule.pullSettingsFromHtml();
-      document.getElementById('apiKey').dispatchEvent(new Event('input'));
     }
   }
 }

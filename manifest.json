@@ -3,22 +3,21 @@
   "name": "4Chan Gallery Viewer WG",
   "short_name": "GalleryView",
   "version": "0.0.21",
-  "description": "Adds gallery button to 4chan wg board thread views, with keyboard shortcuts. Also: optionally, add your OpenAI ApiKey to have the power to do image description lookups.",
+  "description": "Adds gallery button to 4chan wg board thread views, with keyboard shortcuts.",
   "permissions": [
     "contextMenus",
     "downloads",
     "storage",
     "activeTab",
-    "https://api.openai.com/*"
+    "https://code.jquery.com/*"
     ],
   "browser_action": {
     "default_icon": "icon.png"
   },
   "content_scripts": [ {
-    "js": [ "util.js",
-      "jquery.js",
+    "js": [ "jquery.js",
+      "util.js",
       "settingsModule.js",
-      "aiModule.js",
       "labelsModule.js",
       "main.js"  ],
     "css": ["styles.css"],

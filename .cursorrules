@@ -1,0 +1,54 @@
+# Project-Specific Coding Rules
+
+## Comments Policy
+
+### DO NOT add redundant comments
+- ❌ If a function is named `showError()`, DO NOT add a comment like "Shows an error"
+- ❌ If a function is named `updateGalleryState()`, DO NOT add a comment like "Updates the gallery state"
+- ❌ Avoid JSDoc-style comments that just repeat what the function name already says
+- ❌ No XML-docs style comments that provide zero additional information
+
+### DO add useful comments
+- ✅ Explain WHY something is done, not WHAT it does (if the what is obvious)
+- ✅ Document non-obvious behavior, edge cases, or gotchas
+- ✅ Explain terminology, architecture decisions, or complex algorithms
+- ✅ Add context about browser quirks, API limitations, or workarounds
+- ✅ Comment on magic numbers before extracting them to constants
+- ✅ Clarify business logic that isn't self-evident from code
+
+### Examples
+
+**BAD:**
+```javascript
+/**
+ * Shows an error message to the user
+ * @param {string} message - User-friendly error message
+ */
+function showError(message, error = null) {
+```
+
+**GOOD:**
+```javascript
+// Displays error in #output div for 5 seconds, then clears automatically
+function showError(message, error = null) {
+```
+
+**GOOD:**
+```javascript
+// This regex is intentionally flexible to handle future OpenAI key format changes
+const apiKeyRegex = /^sk-[a-zA-Z0-9]{48}$/;
+```
+
+## Code Style
+
+- Keep jQuery for now (Unless there's a good reason to remove it, why would we?)
+- Use centralized state updates via `updateGalleryState()` 
+- All error messages should use constants from `CONSTANTS.ERRORS`
+- Magic numbers should be extracted to `constants.js` with meaningful names
+
+## Testing
+
+- Focus tests on pure functions first (highest ROI)
+- Don't test jQuery wrappers or DOM manipulation in unit tests
+- Manual testing checklist in TESTING.md for browser extension features
+

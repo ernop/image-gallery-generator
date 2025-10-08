@@ -1,3 +1,5 @@
+v0.23 changes: removed AI stuff. Now back to just showing the images.  And some other little fixes and stuff that people have asked for.
+
 v0.22 changes:
 1. fix AI image description lookup.  q looks up, and it displays, and also stores forever.
 
@@ -13,7 +15,6 @@ v0.21 changes:
 # image-gallery-generator
 
 # TODO
-* AI generation of 'similar' images based on various apis versions of 'describe'
 * different layouts?
 * sort/search by filename/order/etc
 * can we make it easier to download?  what does the alpha midjourney site do? it's amazing.
@@ -37,14 +38,3 @@ This Firefox extension enhances the browsing experience on a specific website by
 - Preloads upcoming images for smooth transitions
 - Automatically detects and handles different media types (images and videos)
 - Customizable settings for label display and behavior
-
-## Code Structure
-
-The extension's main functionality is implemented in JavaScript. Here's an overview of the code structure:
-
-- `globalState`: An object that holds the overall state of the extension, including image URLs, types, displayed index, and more.
-- `setup()`: Initializes the extension by loading settings, reading page elements, setting up event listeners, and creating the necessary UI components.
-- `readStuffFromPage()`: Retrieves relevant information from the webpage, such as image URLs and types, and initializes the gallery mode button.
-- `backToNormal()`: Reverts the page to its original state when exiting the gallery mode.
-- `setPreloads()`: Preloads upcoming images to ensure smooth navigation.
-- `redraw()`: Redraws the main displayed window in the gallery mode, updating the

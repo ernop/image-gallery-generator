@@ -1,4 +1,5 @@
 
+const PAGE_JUMP_SIZE = 5;  // Number of images to skip with PageUp/PageDown
 
 const labels = [
   {
@@ -102,18 +103,18 @@ const labels = [
   {
     id: "pageUp",
     condition: (settings, globalState) => true,
-    action: (settings, globalState) => globalState.displayedImageIndex -= 5,
+    action: (settings, globalState) => globalState.displayedImageIndex -= PAGE_JUMP_SIZE,
     shortcut: ["PageUp"],
     content: () => "",
-    help: "Jump five images back."
+    help: `Jump ${PAGE_JUMP_SIZE} images back.`
   },
   {
     id: "pageDown",
     condition: (settings, globalState) => true,
-    action: (settings, globalState) => globalState.displayedImageIndex += 5,
+    action: (settings, globalState) => globalState.displayedImageIndex += PAGE_JUMP_SIZE,
     shortcut: ["PageDown"],
     content: () => "",
-    help: "Jump five images forward."
+    help: `Jump ${PAGE_JUMP_SIZE} images forward.`
   },
   {
     id: "exitGallery",
@@ -149,19 +150,5 @@ const labels = [
     content: () => "",
     temporary: true,
     help: "",
-  },
-  {
-    id: "aiDescribeImage",
-    condition: (settings, globalState) => true,
-    action: (settings, globalState) => {
-      let i = globalState.displayedImageIndex;
-      if (globalState.imageTypes[i] == "image"){
-        let theUrl = globalState.imageUrls[i];
-        ai.DescribeImageAI(settings, globalState, theUrl)
-      }
-    },
-    shortcut: "q",
-    content: () => "",
-    help: "Activate AI to describe the image."
   }
 ];

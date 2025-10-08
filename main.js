@@ -1,32 +1,82 @@
 (function() {
+  const PRELOAD_COUNT = 7;              // Number of images/videos to preload ahead
+  const PRELOAD_CHECK_TIMEOUT = 5;      // Max number of preload checks before giving up
+  const LABEL_FADE_DELAY = 100;         // Delay before label starts fading (ms)
+  const LABEL_FADE_DURATION = 600;      // Duration of label fade animation (ms)
+  
+  const ERRORS = {
+    SETTINGS_LOAD_FAILED: 'Failed to load settings. Using defaults.',
+    DOWNLOAD_FAILED: 'Failed to download image. Please try again or right-click to save manually.',
+    IMAGE_LOAD_FAILED: 'Failed to load image.',
+  };
+
+  const SUCCESS = {
+    IMAGE_DOWNLOADED: 'Image downloaded successfully.',
+  };
+
+  const INFO = {
+    ALREADY_DOWNLOADED: 'This image was already downloaded. Right-click and save as if you want to download it again.',
+  };
+
   const globalState = {
     helpShown: false,
     imageUrls: [],
     imageTypes: [],
     originalImageNames: [],
-    MAX_TOKENS: 1600,
     displayedImageIndex: 0,
     redrawCount: 0,
     relatedCount: 0,
     preloadCount: 0,
-    maxPreloadCount: 7,
+    maxPreloadCount: PRELOAD_COUNT,
     galleryOn: false,
     doSave:false,
   };
 
+  function updateGalleryState(updates, shouldRedraw = false) {
+    Object.assign(globalState, updates);
+    if (shouldRedraw && globalState.galleryOn) {
+      redraw();
+    }
+  }
+
+  // Displays error in #output div for 5 seconds, then clears automatically
+  function showError(message, error = null) {
+    console.error(message, error);
+    $("#output").html(`<div style="color: red; padding: 10px; background: white;">${message}</div>`);
+    setTimeout(() => {
+      $("#output").html('');
+    }, 5000);
+  }
+
+  function showSuccess(message) {
+    console.log(message);
+    redrawLabels();
+    $(".save-state-label").html(message);
+  }
+
+  function showInfo(message) {
+    console.info(message);
+    redrawLabels();
+    $(".save-state-label").html(message);
+  }
+
   async function setup() {
-    await settingsModule.loadSettings();
-    readStuffFromPage();
-    setPreloads();
+    try {
+      await settingsModule.loadSettings();
+      readStuffFromPage();
+      setPreloads();
 
-    $(".galleryOn").click(enableGalleryMode);
+      $(".galleryOn").click(enableGalleryMode);
 
-    $("#targetImg").click((e) => e.stopPropagation());
-    $("#targetVideo").click((e) => e.stopPropagation());
+      $("#targetImg").click((e) => e.stopPropagation());
+      $("#targetVideo").click((e) => e.stopPropagation());
 
-    $("#blackBackground").click(backToNormal);
+      $("#blackBackground").click(backToNormal);
 
-    $(window).on('resize', redraw);
+      $(window).on('resize', redraw);
+    } catch (error) {
+      showError(ERRORS.SETTINGS_LOAD_FAILED, error);
+    }
   }
 
   function readStuffFromPage() {
@@ -54,7 +104,7 @@
 
     });
 
-    const galleryModeText = `GalleryMode WG ${imageCount}/${videoCount}`;
+    const galleryModeText = `GalleryMode WG2 ${imageCount}/${videoCount}`;
     const galleryLink = $('.navLinks .galleryOn');
 
     if (galleryLink.length === 0) {
@@ -76,7 +126,7 @@
   function enableGalleryMode() {
     if (globalState.galleryOn) return;
 
-    globalState.galleryOn = true;
+    updateGalleryState({ galleryOn: true });
     $("body").addClass("gallery-mode");
 
     if ($("#galleryViewWrapper").length == 0) {
@@ -113,10 +163,15 @@
   }
 
   function backToNormal() {
-    globalState.galleryOn = false;
+    updateGalleryState({ galleryOn: false });
     $("#galleryViewWrapper, #blackBackground").hide();
     $("body").removeClass("gallery-mode");
-    document.getElementById("targetVideo").pause();
+    
+    try {
+      document.getElementById("targetVideo").pause();
+    } catch (error) {
+      console.warn('Could not pause video:', error);
+    }
 
     $(document).off('keydown');
     $(window).off('resize');
@@ -130,10 +185,12 @@
 }
 
   function resetGlobalState() {
-    globalState.displayedImageIndex = 0;
-    globalState.redrawCount = 0;
-    globalState.relatedCount = 0;
-    globalState.preloadCount = 0;
+    updateGalleryState({
+      displayedImageIndex: 0,
+      redrawCount: 0,
+      relatedCount: 0,
+      preloadCount: 0
+    });
   }
 
   function setPreloads() {
@@ -155,8 +212,8 @@
   }
 
   function watchAndGo(n, rc) {
-    if (rc !== globalState.redrawCount || n > 5) {
-      if (n > 5) {
+    if (rc !== globalState.redrawCount || n > PRELOAD_CHECK_TIMEOUT) {
+      if (n > PRELOAD_CHECK_TIMEOUT) {
         redrawLabels();
       }
       return;
@@ -164,12 +221,12 @@
 
     const target = $(`#targetImg_preload${n}`);
     if (util.isImageDone(target)) {
-      globalState.preloadCount++;
+      updateGalleryState({ preloadCount: globalState.preloadCount + 1 });
       watchAndGo(n + 1, rc);
     } else {
       target.off('load').one('load', () => {
         if (rc === globalState.redrawCount) {
-          globalState.preloadCount++;
+          updateGalleryState({ preloadCount: globalState.preloadCount + 1 });
           watchAndGo(n + 1, rc);
         }
       });
@@ -180,20 +237,26 @@
   function redraw() {
     if (!globalState.galleryOn) return;
 
-    globalState.redrawCount++;
-    globalState.preloadCount = 0;
-    globalState.displayedImageIndex = Math.min(Math.max(0, globalState.displayedImageIndex), globalState.imageUrls.length - 1);
+    updateGalleryState({
+      redrawCount: globalState.redrawCount + 1,
+      preloadCount: 0,
+      displayedImageIndex: Math.min(Math.max(0, globalState.displayedImageIndex), globalState.imageUrls.length - 1)
+    });
 
     const thisImageType = globalState.imageTypes[globalState.displayedImageIndex];
     const targetImg = $("#targetImg");
     const targetVideo = $("#targetVideo");
 
-    if (thisImageType === "video") {
-      targetImg.hide();
-      targetVideo.show().attr("src", globalState.imageUrls[globalState.displayedImageIndex]);
-    } else {
-      targetImg.show().attr("src", globalState.imageUrls[globalState.displayedImageIndex]);
-      targetVideo.hide();
+    try {
+      if (thisImageType === "video") {
+        targetImg.hide();
+        targetVideo.show().attr("src", globalState.imageUrls[globalState.displayedImageIndex]);
+      } else {
+        targetImg.show().attr("src", globalState.imageUrls[globalState.displayedImageIndex]);
+        targetVideo.hide();
+      }
+    } catch (error) {
+      showError(ERRORS.IMAGE_LOAD_FAILED, error);
     }
 
     setPreloads();
@@ -211,7 +274,7 @@
     $(".fadeout-label").each(function() {
       const $label = $(this);
       $label.removeClass("fadeout-label");
-      $label.delay(100).fadeOut(600, function() {
+      $label.delay(LABEL_FADE_DELAY).fadeOut(LABEL_FADE_DURATION, function() {
         $label.remove();
       });
     });
@@ -221,8 +284,13 @@
     if (temporary){
       return `<div id="${id}" class='outlined-text save-state-label label fadeout-label'>AA</div>`;
     }
-    const ctext = content(globalState);
-    return ctext ? `<div id="${id}" class='label outlined-text'>${ctext}</div>` : '';
+    try {
+      const ctext = content(globalState);
+      return ctext ? `<div id="${id}" class='label outlined-text'>${ctext}</div>` : '';
+    } catch (error) {
+      console.error(`Error creating label ${id}:`, error);
+      return '';
+    }
   }
 
 
@@ -231,42 +299,39 @@
 
   async function fastSaveImage() {
     const currentUrl = globalState.imageUrls[globalState.displayedImageIndex];
-    if (currentUrl) {
-      try {
-        const filename = globalState.originalImageNames[globalState.displayedImageIndex] || 'GalleryWG_Nameless';
-        if (downloadedAlready[currentUrl]){
-          redrawLabels();
-          $(".save-state-label").html(`already downloaded ${filename}, manually right-click and save as if you want to get it again.`);
-          globalState.doSave = false;
-          return;
-        }
+    if (!currentUrl) {
+      showError('No image URL found');
+      return;
+    }
 
-        const response = await browser.runtime.sendMessage({
-          command: 'downloadImage',
-          url: currentUrl,
-          filename: filename
-        });
-
-        redrawLabels();
-        downloadingFilename=filename;
-        $(".save-state-label").html("Saving:"+ filename);
-        globalState.doSave = false;
-
-        if (response.status === 'success') {
-          $(".save-state-label").html("Saved:"+ filename);
-          downloadedAlready[currentUrl]=true;
-        } else {
-          console.error('Error saving image:', response.error);
-          downloadedNowFilename = 'Error saving image:' +response.error;
-          redrawLabels();
-          globalState.doSave = false;
-        }
-      } catch (error) {
-        console.error('Error sending message to background:', error);
-        downloadedNowFilename = 'Error sending message to background:' + error;
-        redrawLabels();
-        globalState.doSave = false;
+    try {
+      const filename = globalState.originalImageNames[globalState.displayedImageIndex] || 'GalleryWG_Nameless';
+      
+      if (downloadedAlready[currentUrl]){
+        showInfo(INFO.ALREADY_DOWNLOADED);
+        updateGalleryState({ doSave: false });
+        return;
       }
+
+      const response = await browser.runtime.sendMessage({
+        command: 'downloadImage',
+        url: currentUrl,
+        filename: filename
+      });
+
+      downloadingFilename = filename;
+      showInfo(`Saving: ${filename}`);
+      updateGalleryState({ doSave: false });
+
+      if (response.status === 'success') {
+        showSuccess(`${SUCCESS.IMAGE_DOWNLOADED} ${filename}`);
+        downloadedAlready[currentUrl] = true;
+      } else {
+        showError(`${ERRORS.DOWNLOAD_FAILED} ${response.error}`, response.error);
+      }
+    } catch (error) {
+      showError(ERRORS.DOWNLOAD_FAILED, error);
+      updateGalleryState({ doSave: false });
     }
   }
 
@@ -276,8 +341,9 @@
   }
 
   function handleMouseWheel(e) {
-    globalState.displayedImageIndex += e.deltaY < 0 ? -1 : 1;
-    redraw();
+    updateGalleryState({
+      displayedImageIndex: globalState.displayedImageIndex + (e.deltaY < 0 ? -1 : 1)
+    }, true);
     e.stopPropagation();
   }
 
@@ -303,7 +369,7 @@
 
         if (globalState.doExit) {
           backToNormal();
-          globalState.doExit = false;
+          updateGalleryState({ doExit: false });
         }
         break;
       }
@@ -315,7 +381,3 @@
 
   setup();
 })();
-
-
-
-
