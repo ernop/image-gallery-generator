@@ -142,7 +142,8 @@ const labels = [
       globalState.keyboardShortcutsShown = false;
     },
     content: (globalState) => {
-      const toggleableLabels = labels.filter(l => l.helpShort && l.modifiesSettings);
+      const toggleableLabels = labels.filter(l => l.helpShort && l.modifiesSettings && l.id !== 'postText');
+      const postTextLabel = labels.find(l => l.id === 'postText');
       
       const displayOrder = settingsModule.settings.displayOrder || [];
       
@@ -176,17 +177,31 @@ const labels = [
         </li>`;
       });
       
+      if (postTextLabel) {
+        const settingKey = 'postTextShown';
+        const isShown = settingsModule.settings[settingKey];
+        const indicator = isShown ? '✓' : ' ';
+        const shortcutDisplay = Array.isArray(postTextLabel.shortcut) ? postTextLabel.shortcut[0] : postTextLabel.shortcut;
+        
+        toggleableItems.push(`<li class="help-item-toggleable help-item-no-drag" data-label-id="${postTextLabel.id}" data-setting-key="${settingKey}">
+          <span class="item-status">${indicator}</span>
+          <span class="item-label">${postTextLabel.helpShort}</span>
+          <span class="item-spacer"></span>
+          <span class="item-shortcut">${shortcutDisplay}</span>
+        </li>`);
+      }
+      
       const header = `<div class="display-options-header">
-        <span class="header-status"></span>
-        <span class="header-label"></span>
+        <span class="header-status">✓</span>
+        <span class="header-label">Display Element</span>
         <span class="header-drag"></span>
-        <span class="header-shortcut">Shortcut Key</span>
+        <span class="header-shortcut">Key</span>
       </div>`;
       
       return `<div class="help-menu-panel"><h3>Display Options</h3>${header}<ul id="displayOptionsList">${toggleableItems.join('')}</ul></div>`;
     },
     shortcut: "v",
-    help: null
+    help: "Toggle display options menu."
   },
   {
     id: "keyboardShortcutsMenu",

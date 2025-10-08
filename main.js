@@ -157,7 +157,11 @@
       }
     });
 
-    const galleryModeText = `GalleryMode WG4 ${imageCount}/${videoCount}`;
+    if (videoCount > 0) {
+      const galleryModeText = `GalleryMode WG ${imageCount}/${videoCount}`;
+    } else {
+      const galleryModeText = `GalleryMode WG ${imageCount}`;
+    }
     const galleryLink = $('.navLinks .galleryOn');
 
     if (galleryLink.length === 0) {
@@ -387,8 +391,14 @@
       
       e.preventDefault();
       const afterElement = getDragAfterElement(list, e.clientY);
+      const noDragItem = list.querySelector('.help-item-no-drag');
+      
       if (afterElement == null) {
-        list.appendChild(draggedItem);
+        if (noDragItem) {
+          list.insertBefore(draggedItem, noDragItem);
+        } else {
+          list.appendChild(draggedItem);
+        }
       } else {
         list.insertBefore(draggedItem, afterElement);
       }
@@ -397,7 +407,7 @@
       if (now - lastUpdateTime > 50) {
         lastUpdateTime = now;
         const newOrder = [];
-        list.querySelectorAll('li').forEach(li => {
+        list.querySelectorAll('li:not(.help-item-no-drag)').forEach(li => {
           const labelId = li.getAttribute('data-label-id');
           if (labelId) newOrder.push(labelId);
         });
@@ -411,6 +421,11 @@
           if (ghostLabel.length) {
             showDragGhostAtPosition(labelId, ghostLabel);
           }
+        } else {
+          const actualLabel = $(`#${labelId}`);
+          if (actualLabel.length) {
+            showDragGhostAtPosition(labelId, actualLabel);
+          }
         }
       }
     });
@@ -419,7 +434,7 @@
       e.preventDefault();
       
       const newOrder = [];
-      list.querySelectorAll('li').forEach(li => {
+      list.querySelectorAll('li:not(.help-item-no-drag)').forEach(li => {
         const labelId = li.getAttribute('data-label-id');
         if (labelId) newOrder.push(labelId);
       });
@@ -499,7 +514,7 @@
   }
   
   function getDragAfterElement(container, y) {
-    const draggableElements = [...container.querySelectorAll('li:not(.dragging)')];
+    const draggableElements = [...container.querySelectorAll('li:not(.dragging):not(.help-item-no-drag)')];
     
     return draggableElements.reduce((closest, child) => {
       const box = child.getBoundingClientRect();
@@ -625,6 +640,19 @@
     $(".help-menu-wrapper").off('click').on('click', function(e) {
       e.stopPropagation();
     });
+    
+    if (globalState.displayOptionsShown || globalState.keyboardShortcutsShown) {
+      $(document).off('click.dismissMenus').on('click.dismissMenus', function(e) {
+        if (!$(e.target).closest('.help-menu-wrapper, .help-menu-button').length) {
+          updateGalleryState({ 
+            displayOptionsShown: false,
+            keyboardShortcutsShown: false
+          });
+          redraw();
+          $(document).off('click.dismissMenus');
+        }
+      });
+    }
     
     $(".help-item-toggleable").off('click mouseenter mouseleave').on('click', function(e) {
       e.stopPropagation();

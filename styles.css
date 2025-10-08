@@ -62,6 +62,10 @@
   font-family: 'Courier New', monospace;
   font-weight: bold;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
 .help-menu-button:hover {
@@ -230,6 +234,17 @@
   font-family: 'Courier New', monospace;
   font-size: 13px;
   font-weight: bold;
+}
+
+.item-spacer {
+  width: 30px;
+  display: inline-block;
+}
+
+.help-item-no-drag {
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  margin-top: 8px;
+  padding-top: 8px;
 }
 
 .help-item-toggleable.dragging {
