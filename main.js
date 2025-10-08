@@ -73,10 +73,43 @@
 
       $(".galleryOn").click(enableGalleryMode);
 
-      $("#targetImg").click((e) => e.stopPropagation());
-      $("#targetVideo").click((e) => e.stopPropagation());
+      $("#targetImg").click((e) => {
+        if (globalState.displayOptionsShown || globalState.keyboardShortcutsShown) {
+          updateGalleryState({
+            displayOptionsShown: false,
+            keyboardShortcutsShown: false
+          });
+          redraw();
+          e.stopPropagation();
+        } else {
+          e.stopPropagation();
+        }
+      });
+      
+      $("#targetVideo").click((e) => {
+        if (globalState.displayOptionsShown || globalState.keyboardShortcutsShown) {
+          updateGalleryState({
+            displayOptionsShown: false,
+            keyboardShortcutsShown: false
+          });
+          redraw();
+          e.stopPropagation();
+        } else {
+          e.stopPropagation();
+        }
+      });
 
-      $("#blackBackground").click(backToNormal);
+      $("#blackBackground").click(function(e) {
+        if (globalState.displayOptionsShown || globalState.keyboardShortcutsShown) {
+          updateGalleryState({
+            displayOptionsShown: false,
+            keyboardShortcutsShown: false
+          });
+          redraw();
+        } else {
+          backToNormal();
+        }
+      });
 
       $(window).on('resize', redraw);
     } catch (error) {
@@ -187,6 +220,9 @@
     $("#galleryViewWrapper, #blackBackground").hide();
     $("body").removeClass("gallery-mode");
     
+    $(".help-menu-button").remove();
+    $(".help-menu-wrapper").remove();
+    
     try {
       document.getElementById("targetVideo").pause();
     } catch (error) {
@@ -197,6 +233,7 @@
     $(window).off('resize');
     $("#blackBackground").off('click');
     $("#targetImg").off('click');
+    $("#targetVideo").off('click');
 
     resetGlobalState();
 
@@ -211,7 +248,9 @@
       relatedCount: 0,
       preloadCount: 0,
       doSave: false,
-      doExit: false
+      doExit: false,
+      displayOptionsShown: false,
+      keyboardShortcutsShown: false
     });
   }
 
@@ -290,22 +329,62 @@
     if (!list) return;
     
     let draggedItem = null;
+    let lastUpdateTime = 0;
     
     list.addEventListener('dragstart', function(e) {
+      if (!e.target.classList.contains('drag-handle')) {
+        e.preventDefault();
+        return;
+      }
+      
       draggedItem = e.target.closest('li');
       if (draggedItem) {
         e.dataTransfer.effectAllowed = 'move';
         draggedItem.classList.add('dragging');
+        
+        const labelId = draggedItem.getAttribute('data-label-id');
+        const settingKey = draggedItem.getAttribute('data-setting-key');
+        const isShown = settingsModule.settings[settingKey];
+        
+        if (!isShown) {
+          const existingTemp = $(`#${labelId}_temp`);
+          if (existingTemp.length) {
+            existingTemp.attr('id', `${labelId}_drag_ghost`);
+            existingTemp.addClass('drag-ghost');
+          } else {
+            const label = labels.find(l => l.id === labelId);
+            if (label && label.content) {
+              try {
+                const tempContent = typeof label.content === 'function' ? label.content(globalState) : label.content;
+                if (tempContent) {
+                  $(`#${labelId}_drag_ghost`).remove();
+                  const ghostLabel = $(`<div id="${labelId}_drag_ghost" class="label outlined-text help-temp-preview drag-ghost"></div>`);
+                  ghostLabel.text(tempContent);
+                  showDragGhostAtPosition(labelId, ghostLabel);
+                }
+              } catch (error) {
+                console.warn('Could not generate drag ghost for', labelId, error);
+              }
+            }
+          }
+        } else {
+          $(`#${labelId}`).addClass('help-drag-highlight');
+        }
       }
     });
     
     list.addEventListener('dragend', function(e) {
       if (draggedItem) {
         draggedItem.classList.remove('dragging');
+        const labelId = draggedItem.getAttribute('data-label-id');
+        $(`#${labelId}`).removeClass('help-highlight help-drag-highlight');
+        $(`#${labelId}_drag_ghost`).remove();
       }
     });
     
     list.addEventListener('dragover', function(e) {
+      if (!draggedItem) return;
+      
       e.preventDefault();
       const afterElement = getDragAfterElement(list, e.clientY);
       if (afterElement == null) {
@@ -313,10 +392,32 @@
       } else {
         list.insertBefore(draggedItem, afterElement);
       }
+      
+      const now = Date.now();
+      if (now - lastUpdateTime > 50) {
+        lastUpdateTime = now;
+        const newOrder = [];
+        list.querySelectorAll('li').forEach(li => {
+          const labelId = li.getAttribute('data-label-id');
+          if (labelId) newOrder.push(labelId);
+        });
+        settingsModule.settings.displayOrder = newOrder;
+        
+        const labelId = draggedItem.getAttribute('data-label-id');
+        const settingKey = draggedItem.getAttribute('data-setting-key');
+        const isShown = settingsModule.settings[settingKey];
+        if (!isShown) {
+          const ghostLabel = $(`#${labelId}_drag_ghost`);
+          if (ghostLabel.length) {
+            showDragGhostAtPosition(labelId, ghostLabel);
+          }
+        }
+      }
     });
     
     list.addEventListener('drop', function(e) {
       e.preventDefault();
+      
       const newOrder = [];
       list.querySelectorAll('li').forEach(li => {
         const labelId = li.getAttribute('data-label-id');
@@ -324,7 +425,77 @@
       });
       settingsModule.settings.displayOrder = newOrder;
       settingsModule.saveSettings(false);
+      updateLabelsOrder();
     });
+  }
+  
+  function showDragGhostAtPosition(labelId, ghostElement) {
+    const displayOrder = settingsModule.settings.displayOrder || [];
+    const labelIndex = displayOrder.indexOf(labelId);
+    
+    const visibleBeforeLabels = [];
+    for (let i = 0; i < labelIndex; i++) {
+      const beforeId = displayOrder[i];
+      const beforeLabel = labels.find(l => l.id === beforeId);
+      if (beforeLabel) {
+        const settingKey = beforeId.endsWith('Label') ? beforeId + 'Shown' : beforeId + 'Shown';
+        if (settingsModule.settings[settingKey]) {
+          visibleBeforeLabels.push(beforeId);
+        }
+      }
+    }
+    
+    ghostElement.detach();
+    if (visibleBeforeLabels.length === 0) {
+      const firstLabel = $("#labelZone .label").first();
+      if (firstLabel.length) {
+        firstLabel.before(ghostElement);
+      } else {
+        $("#labelZone").prepend(ghostElement);
+      }
+    } else {
+      const lastVisibleId = visibleBeforeLabels[visibleBeforeLabels.length - 1];
+      $(`#${lastVisibleId}`).after(ghostElement);
+    }
+  }
+  
+  function updateLabelsOrder() {
+    const displayOrder = settingsModule.settings.displayOrder || [];
+    const visibleLabels = labels.filter(label => {
+      return label.condition(settingsModule.settings, globalState) && 
+             label.id !== 'displayOptionsMenu' && 
+             label.id !== 'keyboardShortcutsMenu' &&
+             label.id !== 'postText';
+    });
+    
+    const sortedLabels = [...visibleLabels].sort((a, b) => {
+      const indexA = displayOrder.indexOf(a.id);
+      const indexB = displayOrder.indexOf(b.id);
+      if (indexA === -1 && indexB === -1) return 0;
+      if (indexA === -1) return 1;
+      if (indexB === -1) return -1;
+      return indexA - indexB;
+    });
+    
+    const labelHtml = sortedLabels.map(label => createLabel(label.id, label.content, label.temporary))
+      .join('');
+
+    const dragGhost = $("#labelZone").find('[id$="_drag_ghost"]').detach();
+    const tempPreview = $("#labelZone").find('[id$="_temp"]').detach();
+    
+    $("#labelZone").html(labelHtml);
+    
+    if (dragGhost.length) {
+      const ghostId = dragGhost.attr('id');
+      const labelId = ghostId.replace('_drag_ghost', '');
+      showDragGhostAtPosition(labelId, dragGhost);
+    }
+    
+    if (tempPreview.length) {
+      const tempId = tempPreview.attr('id');
+      const labelId = tempId.replace('_temp', '');
+      showDragGhostAtPosition(labelId, tempPreview);
+    }
   }
   
   function getDragAfterElement(container, y) {
@@ -401,7 +572,7 @@
     
     if (settingsModule.settings.helpButtonShown && !globalState.distractionFreeMode) {
       const displayOptionsButton = $('<div id="displayOptionsButton" class="help-menu-button">⚙</div>');
-      displayOptionsButton.click(function(e) {
+      displayOptionsButton.on('click', function(e) {
         e.stopPropagation();
         updateGalleryState({ 
           displayOptionsShown: !globalState.displayOptionsShown,
@@ -412,7 +583,7 @@
       $('body').append(displayOptionsButton);
       
       const keyboardShortcutsButton = $('<div id="keyboardShortcutsButton" class="help-menu-button">?</div>');
-      keyboardShortcutsButton.click(function(e) {
+      keyboardShortcutsButton.on('click', function(e) {
         e.stopPropagation();
         updateGalleryState({ 
           keyboardShortcutsShown: !globalState.keyboardShortcutsShown,
@@ -451,7 +622,12 @@
     
     setupDragAndDrop();
     
-    $(".help-item-toggleable").off('click mouseenter mouseleave').on('click', function() {
+    $(".help-menu-wrapper").off('click').on('click', function(e) {
+      e.stopPropagation();
+    });
+    
+    $(".help-item-toggleable").off('click mouseenter mouseleave').on('click', function(e) {
+      e.stopPropagation();
       const $item = $(this);
       const labelId = $item.attr('data-label-id');
       const settingKey = $item.attr('data-setting-key');
@@ -486,21 +662,33 @@
           try {
             const tempContent = typeof label.content === 'function' ? label.content(globalState) : label.content;
             if (tempContent) {
-              const tempLabel = $(`<div id="${labelId}_temp" class="label outlined-text help-highlight help-temp-preview">${tempContent}</div>`);
+              const tempLabel = $(`<div id="${labelId}_temp" class="label outlined-text help-highlight help-temp-preview"></div>`);
+              tempLabel.text(tempContent);
               
-              const labelIndex = labels.findIndex(l => l.id === labelId);
-              const visibleLabels = labels.filter((l, idx) => 
-                idx < labelIndex && 
-                l.condition && 
-                l.condition(settingsModule.settings, globalState) &&
-                l.id !== 'displayOptionsMenu' &&
-                l.id !== 'keyboardShortcutsMenu'
-              );
+              const displayOrder = settingsModule.settings.displayOrder || [];
+              const labelIndex = displayOrder.indexOf(labelId);
               
-              if (visibleLabels.length === 0) {
-                $("#labelZone .label").first().before(tempLabel);
+              const visibleBeforeLabels = [];
+              for (let i = 0; i < labelIndex && i < displayOrder.length; i++) {
+                const beforeId = displayOrder[i];
+                const beforeLabel = labels.find(l => l.id === beforeId);
+                if (beforeLabel) {
+                  const beforeSettingKey = beforeId.endsWith('Label') ? beforeId + 'Shown' : beforeId + 'Shown';
+                  if (settingsModule.settings[beforeSettingKey]) {
+                    visibleBeforeLabels.push(beforeId);
+                  }
+                }
+              }
+              
+              if (visibleBeforeLabels.length === 0) {
+                const firstLabel = $("#labelZone .label").first();
+                if (firstLabel.length) {
+                  firstLabel.before(tempLabel);
+                } else {
+                  $("#labelZone").prepend(tempLabel);
+                }
               } else {
-                const lastVisibleId = visibleLabels[visibleLabels.length - 1].id;
+                const lastVisibleId = visibleBeforeLabels[visibleBeforeLabels.length - 1];
                 $(`#${lastVisibleId}`).after(tempLabel);
               }
             }
@@ -512,7 +700,9 @@
     }).on('mouseleave', function() {
       const labelId = $(this).attr('data-label-id');
       $(`#${labelId}`).removeClass('help-highlight');
-      $(`#${labelId}_temp`).remove();
+      if (!$(`#${labelId}_drag_ghost`).length) {
+        $(`#${labelId}_temp`).remove();
+      }
     });
     
     $(".fadeout-label").each(function() {

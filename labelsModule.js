@@ -164,16 +164,26 @@ const labels = [
         }
         
         const isShown = settingsModule.settings[settingKey];
-        const indicator = isShown 
-          ? '<span class="status-indicator status-shown">●</span>' 
-          : '<span class="status-indicator status-hidden">●</span>';
+        const indicator = isShown ? '✓' : ' ';
         
         const shortcutDisplay = Array.isArray(label.shortcut) ? label.shortcut[0] : label.shortcut;
         
-        return `<li class="help-item-toggleable" draggable="true" data-label-id="${label.id}" data-setting-key="${settingKey}"><span class="drag-handle">⋮⋮</span> ${indicator} <kbd>${shortcutDisplay}</kbd> ${label.helpShort}</li>`;
+        return `<li class="help-item-toggleable" data-label-id="${label.id}" data-setting-key="${settingKey}">
+          <span class="item-status">${indicator}</span>
+          <span class="item-label">${label.helpShort}</span>
+          <span class="drag-handle" draggable="true">≡</span>
+          <span class="item-shortcut">${shortcutDisplay}</span>
+        </li>`;
       });
       
-      return `<div class="help-menu-panel"><h3>Display Options <small>(drag to reorder)</small></h3><ul id="displayOptionsList">${toggleableItems.join('')}</ul></div>`;
+      const header = `<div class="display-options-header">
+        <span class="header-status"></span>
+        <span class="header-label"></span>
+        <span class="header-drag"></span>
+        <span class="header-shortcut">Shortcut Key</span>
+      </div>`;
+      
+      return `<div class="help-menu-panel"><h3>Display Options</h3>${header}<ul id="displayOptionsList">${toggleableItems.join('')}</ul></div>`;
     },
     shortcut: "v",
     help: null
