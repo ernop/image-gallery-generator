@@ -238,10 +238,25 @@
   function redraw() {
     if (!globalState.galleryOn) return;
 
+    let newIndex = globalState.displayedImageIndex;
+    const maxIndex = globalState.imageUrls.length - 1;
+
+    if (settingsModule.settings.loopNavigation) {
+      // Wrap around when looping is enabled
+      if (newIndex < 0) {
+        newIndex = maxIndex;
+      } else if (newIndex > maxIndex) {
+        newIndex = 0;
+      }
+    } else {
+      // Clamp to valid range
+      newIndex = Math.min(Math.max(0, newIndex), maxIndex);
+    }
+
     updateGalleryState({
       redrawCount: globalState.redrawCount + 1,
       preloadCount: 0,
-      displayedImageIndex: Math.min(Math.max(0, globalState.displayedImageIndex), globalState.imageUrls.length - 1)
+      displayedImageIndex: newIndex
     });
 
     const thisImageType = globalState.imageTypes[globalState.displayedImageIndex];
@@ -347,6 +362,18 @@
   function setKeyboardShortcuts() {
     $(document).keydown(handleShortcut);
     document.addEventListener('wheel', handleMouseWheel);
+    document.addEventListener('mouseup', handleMouseButtons);
+  }
+
+  function handleMouseButtons(e) {
+    // Mouse button 3 = back, button 4 = forward (side buttons on mice)
+    if (e.button === 3) {
+      updateGalleryState({ displayedImageIndex: globalState.displayedImageIndex - 1 }, true);
+      e.preventDefault();
+    } else if (e.button === 4) {
+      updateGalleryState({ displayedImageIndex: globalState.displayedImageIndex + 1 }, true);
+      e.preventDefault();
+    }
   }
 
   function handleMouseWheel(e) {

@@ -1,32 +1,36 @@
- {
-  "manifest_version": 2,
+{
+  "manifest_version": 3,
   "name": "4Chan Gallery Viewer WG",
   "short_name": "GalleryView",
-  "version": "0.0.21",
-  "description": "Adds gallery button to 4chan wg board thread views, with keyboard shortcuts.",
+  "version": "0.0.26",
+  "description": "Adds gallery button to 4chan thread views with keyboard shortcuts for fast image browsing and saving.",
   "permissions": [
-    "contextMenus",
     "downloads",
     "storage",
-    "activeTab",
+    "scripting"
+  ],
+  "optional_permissions": [
+    "<all_urls>"
+  ],
+  "host_permissions": [
     "https://code.jquery.com/*"
-    ],
-  "browser_action": {
+  ],
+  "action": {
     "default_icon": "icon.png"
   },
-  "content_scripts": [ {
-    "js": [ "jquery.js",
+  "content_scripts": [{
+    "js": [
+      "jquery.js",
       "util.js",
       "settingsModule.js",
       "labelsModule.js",
-      "main.js"  ],
+      "main.js"
+    ],
     "css": ["styles.css"],
     "matches": [
-		"http://boards.4chan.org/*",
-		"https://boards.4chan.org/*",
-		"http://boards.4channel.org/*",
-		"https://boards.4channel.org/*"
-	]
+      "*://boards.4chan.org/*",
+      "*://boards.4channel.org/*"
+    ]
   }],
   "options_ui": {
     "page": "options.html"
@@ -36,7 +40,8 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "{2381ef0e-653b-4549-b953-27124405c12e}"
+      "id": "{2381ef0e-653b-4549-b953-27124405c12e}",
+      "strict_min_version": "109.0"
     }
   }
 }

@@ -17,7 +17,20 @@
       <br /><label><input type="checkbox" id="imageMegapixelsShown">Show Megapixels</label>
       <br /><label><input type="checkbox" id="preloadLabelShown">Show the count of preloaded images</label>
       <br /><label><input type="checkbox" id="anyImagePreloadedLabelShown">Show a dot when the next image is loaded</label>
-       <p />Note: these options used to not work. They work now (as of v0.0.18)
+
+      <h2>Navigation</h2>
+      <label><input type="checkbox" id="loopNavigation">Loop navigation (wrap around at first/last image)</label>
+
+      <h2>Custom Sites</h2>
+      <p><code>example.com</code> → matches example.com and all subdomains</p>
+      <ol id="customSitesSteps">
+        <li>Enter domain(s), one per line</li>
+        <li>Click "Grant Permission" — browser will prompt</li>
+        <li>Click "Save" above</li>
+      </ol>
+      <textarea id="customSitePatterns" rows="4" cols="50"></textarea>
+      <br /><button type="button" id="enableCustomSites">Grant Permission</button>
+      <span id="customSitesStatus"></span>
 
       <p /><button type="submit">Save</button><div id="saveNotice">You have unsaved changes. Save if you want.</div>
       <br /><div id="output"></div>
