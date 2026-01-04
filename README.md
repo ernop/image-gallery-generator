@@ -3,8 +3,9 @@ v0.0.26 changes:
 2. Loop navigation option (wrap around at first/last image)
 3. Custom site support — add your own domains in Options, extension requests permission dynamically
 4. Redesigned Options page with dark theme
-5. Simplified domain input — just type "example.com", auto-expands to match all subdomains
+5. Simplified domain input — just type the hostname you'd like to use this on. Note: it may not work because we may need more detail on how to hook into the right place to add the link.  Whatever you add auto-expands to match all subdomains
 6. Cleaned up permissions (removed unused contextMenus, activeTab)
+7. Added MP4 and GIFV video support (addresses user feedback)
 
 v0.0.24 changes:
 1. Migrated to Manifest v3 for Firefox
