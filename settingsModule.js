@@ -96,6 +96,8 @@ let settingsModule = {
       postTimeShown: false,
       postTextShown: false,
       displayOrder: [],
+      loopNavigation: false,
+      customSitePatterns: [],
     };
 
     return Object.assign({}, defaultSettings, settings);
@@ -112,8 +114,59 @@ let settingsModule = {
       helpButtonShown: document.querySelector("#helpButtonShown").checked,
       postTimeShown: document.querySelector("#postTimeShown").checked,
       postTextShown: document.querySelector("#postTextShown").checked,
+      loopNavigation: document.querySelector("#loopNavigation").checked,
+      customSitePatterns: settingsModule.getCustomSitePatternsFromHtml(),
     };
     return settings;
+  },
+
+  getCustomSitePatternsFromHtml: function() {
+    const textarea = document.querySelector("#customSitePatterns");
+    if (!textarea) return [];
+    const rawLines = textarea.value.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+    
+    // Expand each line into proper match patterns
+    const patterns = [];
+    for (const line of rawLines) {
+      patterns.push(...settingsModule.expandToMatchPatterns(line));
+    }
+    return [...new Set(patterns)]; // Remove duplicates
+  },
+
+  // Expands a user-friendly input into proper match patterns
+  // Input: "x.com" or "https://x.com" or "*://x.com/*"
+  // Output: ["*://x.com/*", "*://*.x.com/*"]
+  expandToMatchPatterns: function(input) {
+    let domain = input.trim();
+    
+    // Already a proper match pattern? Return as-is
+    if (domain.includes('*://') && domain.endsWith('/*')) {
+      return [domain];
+    }
+    
+    // Strip protocol if present
+    domain = domain.replace(/^https?:\/\//, '');
+    domain = domain.replace(/^\*:\/\//, '');
+    
+    // Strip leading wildcard subdomain if present
+    domain = domain.replace(/^\*\./, '');
+    
+    // Strip trailing path/wildcards
+    domain = domain.replace(/\/\*$/, '');
+    domain = domain.replace(/\/.*$/, '');
+    
+    // Strip leading/trailing dots
+    domain = domain.replace(/^\.+|\.+$/g, '');
+    
+    if (!domain || !domain.includes('.')) {
+      return []; // Invalid domain
+    }
+    
+    // Generate patterns for base domain and all subdomains
+    return [
+      `*://${domain}/*`,
+      `*://*.${domain}/*`
+    ];
   },
 
   applySettingsToConfigurationPage: function() {
@@ -129,6 +182,12 @@ let settingsModule = {
     document.querySelector("#helpButtonShown").checked = settingsToRestore.helpButtonShown;
     document.querySelector("#postTimeShown").checked = settingsToRestore.postTimeShown;
     document.querySelector("#postTextShown").checked = settingsToRestore.postTextShown;
+    document.querySelector("#loopNavigation").checked = settingsToRestore.loopNavigation;
+    
+    const patternsTextarea = document.querySelector("#customSitePatterns");
+    if (patternsTextarea) {
+      patternsTextarea.value = (settingsToRestore.customSitePatterns || []).join('\n');
+    }
   },
 
   setSettingsAsHavingUnsavedChanges: function(val){
@@ -166,6 +225,29 @@ let settingsModule = {
       });
     });
 
+    // Track changes in textarea too
+    const patternsTextarea = document.querySelector("#customSitePatterns");
+    if (patternsTextarea) {
+      patternsTextarea.addEventListener('input', () => {
+        const candidateSettings = settingsModule.pullSettingsFromHtml();
+        settingsModule.setSettingsAsHavingUnsavedChanges(settingsModule.settingsAreDifferentThanLastSaved(candidateSettings));
+        
+        // Update steps: if textarea has content, highlight step 2 (grant permission)
+        const hasContent = patternsTextarea.value.trim().length > 0;
+        settingsModule.updateCustomSitesSteps(hasContent ? 1 : 0);
+        
+        // Clear status when editing
+        const statusEl = document.querySelector("#customSitesStatus");
+        if (statusEl) statusEl.textContent = "";
+      });
+    }
+
+    // Handle custom sites button
+    const enableBtn = document.querySelector("#enableCustomSites");
+    if (enableBtn) {
+      enableBtn.addEventListener('click', settingsModule.handleEnableCustomSites);
+    }
+
     document.querySelector("form").addEventListener("submit", function(e){
       e.preventDefault();
       try{
@@ -173,11 +255,104 @@ let settingsModule = {
           document.querySelector("button[type='submit']").dataset.changed = 'false';
           document.querySelector("#saveNotice").dataset.changed = 'false';
           changed=false;
+          
+          // Also register the custom site scripts after saving
+          settingsModule.registerCustomSitesAfterSave();
+          
+          // Mark all steps done if custom sites were configured
+          const patterns = settingsModule.getCustomSitePatternsFromHtml();
+          if (patterns.length > 0) {
+            settingsModule.updateCustomSitesSteps(3);
+          }
       } catch (error) {
           settingsModule.optionsHtmlPageInfo(`${ERRORS.SETTINGS_SAVE_FAILED}: ${error.message}`);
           console.error('Error saving settings:', error);
       }
     });
+
+    // Update custom sites status display
+    settingsModule.updateCustomSitesStatus();
+  },
+
+  handleEnableCustomSites: async function() {
+    const patterns = settingsModule.getCustomSitePatternsFromHtml();
+    const statusEl = document.querySelector("#customSitesStatus");
+    
+    if (patterns.length === 0) {
+      statusEl.textContent = " ⚠️ Enter domain first";
+      settingsModule.updateCustomSitesSteps(0);
+      return;
+    }
+
+    statusEl.textContent = " Requesting...";
+
+    try {
+      const granted = await browser.permissions.request({ origins: patterns });
+
+      if (granted) {
+        statusEl.textContent = " ✓ Granted — now Save (Firefox permissions tab needs manual refresh to show)";
+        settingsModule.updateCustomSitesSteps(2);
+        settingsModule.setSettingsAsHavingUnsavedChanges(true);
+      } else {
+        statusEl.textContent = " ✗ Permission denied";
+        settingsModule.updateCustomSitesSteps(1);
+      }
+    } catch (error) {
+      statusEl.textContent = ` ✗ ${error.message}`;
+      settingsModule.updateCustomSitesSteps(1);
+    }
+  },
+
+  updateCustomSitesSteps: function(completedStep) {
+    const steps = document.querySelectorAll("#customSitesSteps li");
+    if (!steps.length) return;
+    
+    steps.forEach((li, i) => {
+      li.classList.remove('done', 'current');
+      if (i < completedStep) {
+        li.classList.add('done');
+      } else if (i === completedStep) {
+        li.classList.add('current');
+      }
+    });
+  },
+
+  registerCustomSitesAfterSave: async function() {
+    const patterns = settingsModule.getCustomSitePatternsFromHtml();
+    const statusEl = document.querySelector("#customSitesStatus");
+
+    try {
+      const response = await browser.runtime.sendMessage({
+        command: 'registerCustomSites',
+        patterns: patterns
+      });
+
+      if (response.status === 'success') {
+        if (patterns.length > 0) {
+          statusEl.textContent = ` ✓ Active on ${patterns.length} custom site(s)`;
+        } else {
+          statusEl.textContent = "";
+        }
+      } else {
+        statusEl.textContent = ` ✗ Registration failed: ${response.error}`;
+      }
+    } catch (error) {
+      statusEl.textContent = ` ✗ Error: ${error.message}`;
+    }
+  },
+
+  updateCustomSitesStatus: async function() {
+    const statusEl = document.querySelector("#customSitesStatus");
+    if (!statusEl) return;
+
+    try {
+      const response = await browser.runtime.sendMessage({ command: 'getCustomSitesStatus' });
+      if (response.registered && response.patterns.length > 0) {
+        statusEl.textContent = ` ✓ Active on ${response.patterns.length} custom site(s)`;
+      }
+    } catch (error) {
+      // Ignore
+    }
   }
 }
 

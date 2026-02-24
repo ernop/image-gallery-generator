@@ -5,7 +5,7 @@ let util={
   },
   
   getFileType: function(path) {
-    return path.match(/\.webm$/i) ? "video" : "image";
+    return path.match(/\.(webm|mp4|gifv)$/i) ? "video" : "image";
   },
     
   //is it done loading and stuff, bit janky?
