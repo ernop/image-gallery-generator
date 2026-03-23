@@ -9,18 +9,75 @@
 
   <body id="galleryWGOptionsBody">
     <h1>Options:</h1>
+    <div id="saveNoticeTop" class="save-notice-top">You have unsaved changes. Save if you want.</div>
     <h2>Labels</h2>
     <form id="galleryOptions">
-      <label><input type="checkbox" id="imageCountShown">Show Count</label>
-      <br /><label><input type="checkbox" id="imageFilenameShown">Show Filename</label>
-      <br /><label><input type="checkbox" id="imageResolutionShown">Show Resolution</label>
-      <br /><label><input type="checkbox" id="imageMegapixelsShown">Show Megapixels</label>
-      <br /><label><input type="checkbox" id="preloadLabelShown">Show the count of preloaded images</label>
-      <br /><label><input type="checkbox" id="anyImagePreloadedLabelShown">Show a dot when the next image is loaded</label>
-      <br /><label><input type="checkbox" id="postTimeShown">Show post time (how long ago)</label>
-      <br /><label><input type="checkbox" id="postTextShown">Show post text/comment</label>
+      <table class="options-table">
+        <thead>
+          <tr><th></th><th>Option</th><th>Example</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><input type="checkbox" id="imageCountShown"></td>
+            <td><label for="imageCountShown">Image count</label></td>
+            <td><code> 3 / 47</code></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" id="imageFilenameShown"></td>
+            <td><label for="imageFilenameShown">Filename</label></td>
+            <td><code>autumn_forest.jpg</code></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" id="imageResolutionShown"></td>
+            <td><label for="imageResolutionShown">Resolution</label></td>
+            <td><code>1920x1080</code></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" id="imageMegapixelsShown"></td>
+            <td><label for="imageMegapixelsShown">Megapixels</label></td>
+            <td><code>2.1m</code></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" id="preloadLabelShown"></td>
+            <td><label for="preloadLabelShown">Preload count</label></td>
+            <td><code>5</code></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" id="anyImagePreloadedLabelShown"></td>
+            <td><label for="anyImagePreloadedLabelShown">Preload indicator</label></td>
+            <td><code>.</code></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" id="postTimeShown"></td>
+            <td><label for="postTimeShown">Post time</label></td>
+            <td><code>3 hours ago</code></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" id="postTextShown"></td>
+            <td><label for="postTextShown">Post text</label></td>
+            <td><code>Can anyone ID this location?</code></td>
+          </tr>
+        </tbody>
+      </table>
+
       <h2>UI Elements</h2>
-      <label><input type="checkbox" id="helpButtonShown">Show help button (?)</label>
+      <table class="options-table">
+        <thead>
+          <tr><th></th><th>Option</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><input type="checkbox" id="helpButtonShown"></td>
+            <td><label for="helpButtonShown">Help buttons</label></td>
+            <td><code>⚙</code> and <code>?</code> buttons in gallery corners</td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" id="progressBarShown"></td>
+            <td><label for="progressBarShown">Loading progress bar</label></td>
+            <td>Thin bar at bottom showing image download progress</td>
+          </tr>
+        </tbody>
+      </table>
 
       <h2>Navigation</h2>
       <label><input type="checkbox" id="loopNavigation">Loop navigation (wrap around at first/last image)</label>

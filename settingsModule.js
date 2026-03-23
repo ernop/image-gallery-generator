@@ -84,6 +84,11 @@ let settingsModule = {
   },
 
   //when you load settings, run it through this, that way if the setting you got from storage is missing a key and its value, it'll be filled in from default.
+  defaultDisplayOrder: [
+    "imageCount", "imageFilename", "imageResolution",
+    "imageMegapixels", "postTime", "preloadLabel", "anyImagePreloadedLabel"
+  ],
+
   privateApplyDefaultSettings:function(settings) {
     const defaultSettings = {
       imageCountShown: true,
@@ -93,14 +98,21 @@ let settingsModule = {
       preloadLabelShown: false,
       anyImagePreloadedLabelShown: false,
       helpButtonShown: true,
+      progressBarShown: true,
       postTimeShown: false,
       postTextShown: false,
-      displayOrder: [],
+      displayOrder: settingsModule.defaultDisplayOrder,
       loopNavigation: false,
       customSitePatterns: [],
     };
 
-    return Object.assign({}, defaultSettings, settings);
+    const merged = Object.assign({}, defaultSettings, settings);
+
+    if (!merged.displayOrder || merged.displayOrder.length === 0) {
+      merged.displayOrder = settingsModule.defaultDisplayOrder;
+    }
+
+    return merged;
   },
 
   pullSettingsFromHtml:function(){
@@ -112,6 +124,7 @@ let settingsModule = {
       preloadLabelShown: document.querySelector("#preloadLabelShown").checked,
       anyImagePreloadedLabelShown: document.querySelector("#anyImagePreloadedLabelShown").checked,
       helpButtonShown: document.querySelector("#helpButtonShown").checked,
+      progressBarShown: document.querySelector("#progressBarShown").checked,
       postTimeShown: document.querySelector("#postTimeShown").checked,
       postTextShown: document.querySelector("#postTextShown").checked,
       loopNavigation: document.querySelector("#loopNavigation").checked,
@@ -180,6 +193,7 @@ let settingsModule = {
     document.querySelector("#preloadLabelShown").checked = settingsToRestore.preloadLabelShown;
     document.querySelector("#anyImagePreloadedLabelShown").checked = settingsToRestore.anyImagePreloadedLabelShown;
     document.querySelector("#helpButtonShown").checked = settingsToRestore.helpButtonShown;
+    document.querySelector("#progressBarShown").checked = settingsToRestore.progressBarShown;
     document.querySelector("#postTimeShown").checked = settingsToRestore.postTimeShown;
     document.querySelector("#postTextShown").checked = settingsToRestore.postTextShown;
     document.querySelector("#loopNavigation").checked = settingsToRestore.loopNavigation;
@@ -200,6 +214,8 @@ let settingsModule = {
     }
     document.querySelector("button[type='submit']").dataset.changed = ss;
     document.querySelector("#saveNotice").dataset.changed = ss;
+    const topNotice = document.querySelector("#saveNoticeTop");
+    if (topNotice) topNotice.dataset.changed = ss;
   },
 
   setupOptionsHtmlPage:async function(){
@@ -254,6 +270,8 @@ let settingsModule = {
           settingsModule.saveSettings(true);
           document.querySelector("button[type='submit']").dataset.changed = 'false';
           document.querySelector("#saveNotice").dataset.changed = 'false';
+          const topNotice = document.querySelector("#saveNoticeTop");
+          if (topNotice) topNotice.dataset.changed = 'false';
           changed=false;
           
           // Also register the custom site scripts after saving

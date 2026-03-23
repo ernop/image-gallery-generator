@@ -1,9 +1,9 @@
-(function() {
+(function () {
   const PRELOAD_COUNT = 7;              // Number of images/videos to preload ahead
   const PRELOAD_CHECK_TIMEOUT = 5;      // Max number of preload checks before giving up
   const LABEL_FADE_DELAY = 100;         // Delay before label starts fading (ms)
   const LABEL_FADE_DURATION = 600;      // Duration of label fade animation (ms)
-  
+
   const ERRORS = {
     SETTINGS_LOAD_FAILED: 'Failed to load settings. Using defaults.',
     DOWNLOAD_FAILED: 'Failed to download image. Please try again or right-click to save manually.',
@@ -85,7 +85,7 @@
           e.stopPropagation();
         }
       });
-      
+
       $("#targetVideo").click((e) => {
         if (globalState.displayOptionsShown || globalState.keyboardShortcutsShown) {
           updateGalleryState({
@@ -99,7 +99,7 @@
         }
       });
 
-      $("#blackBackground").click(function(e) {
+      $("#blackBackground").click(function (e) {
         if (globalState.displayOptionsShown || globalState.keyboardShortcutsShown) {
           updateGalleryState({
             displayOptionsShown: false,
@@ -128,25 +128,25 @@
     let imageCount = 0;
     let videoCount = 0;
 
-    $('.postContainer').each(function() {
+    $('.postContainer').each(function () {
       const $post = $(this);
       const $fileText = $post.find('.fileText');
-      
+
       if ($fileText.length === 0) return;
-      
+
       const path = $fileText.find('a').attr('href');
       if (!path) return;
-      
+
       const index = globalState.imageUrls.length;
       globalState.imageUrls.push(path);
       globalState.imageTypes[index] = util.getFileType(path);
 
       const originalImageName = $fileText.find('a').attr('title') || $fileText.find('a')[0].innerHTML;
       globalState.originalImageNames.push(originalImageName);
-      
+
       const timestamp = $post.find('.dateTime[data-utc]').attr('data-utc') || '';
       globalState.postTimestamps.push(timestamp);
-      
+
       const postText = $post.find('.postMessage').text().trim();
       globalState.postTexts.push(postText);
 
@@ -159,9 +159,9 @@
 
     let galleryModeText;
     if (videoCount > 0) {
-      galleryModeText = `GalleryMode WG ${imageCount}/${videoCount}`;
+      galleryModeText = `GalleryMode WG2 ${imageCount}/${videoCount}`;
     } else {
-      galleryModeText = `GalleryMode WG ${imageCount}`;
+      galleryModeText = `GalleryMode WG2 ${imageCount}`;
     }
     const galleryLink = $('.navLinks .galleryOn');
 
@@ -181,8 +181,10 @@
     $('#fastSaveButton').click(fastSaveImage);
   }
 
-  function enableGalleryMode() {
+  async function enableGalleryMode() {
     if (globalState.galleryOn) return;
+
+    await settingsModule.loadSettings();
 
     updateGalleryState({ galleryOn: true });
     $("body").addClass("gallery-mode");
@@ -196,6 +198,7 @@
             <video controls="true" autoplay id="targetVideo" src=""></video>
             <div id="output"></div>
           </div>
+          <div id="loadingProgressBar"></div>
         </div>
       `);
     } else {
@@ -203,7 +206,7 @@
     }
 
     styleBlackBackground();
-    readStuffFromPage();  // Ensure data is loaded
+    readStuffFromPage();
     redraw();
     setKeyboardShortcuts();
   }
@@ -220,14 +223,137 @@
     });
   }
 
+  const blobUrlCache = {};
+  let activeFetchController = null;
+
+  function showProgress(fraction) {
+    if (!settingsModule.settings.progressBarShown) return;
+    const bar = document.getElementById('loadingProgressBar');
+    if (!bar) return;
+    bar.classList.remove('done');
+    bar.classList.add('active');
+    bar.style.width = (fraction * 100) + '%';
+  }
+
+  function hideProgress() {
+    const bar = document.getElementById('loadingProgressBar');
+    if (!bar) return;
+    bar.classList.add('done');
+    setTimeout(() => {
+      bar.classList.remove('active', 'done');
+      bar.style.width = '0%';
+    }, 600);
+  }
+
+  function resetProgress() {
+    const bar = document.getElementById('loadingProgressBar');
+    if (!bar) return;
+    bar.classList.remove('active', 'done');
+    bar.style.width = '0%';
+  }
+
+  function showImageCleanly($img, src) {
+    const el = $img[0];
+    $img.hide();
+    el.src = src;
+    if (el.decode) {
+      el.decode().then(() => {
+        if (globalState.galleryOn) $img.show();
+      }).catch(() => {
+        if (globalState.galleryOn) $img.show();
+      });
+    } else {
+      $img.show();
+    }
+  }
+
+  function cancelActiveFetch() {
+    if (activeFetchController) {
+      activeFetchController.abort();
+      activeFetchController = null;
+    }
+  }
+
+  async function fetchImageWithProgress(url) {
+    if (blobUrlCache[url]) {
+      return blobUrlCache[url];
+    }
+
+    cancelActiveFetch();
+    const controller = new AbortController();
+    activeFetchController = controller;
+
+    const response = await fetch(url, { signal: controller.signal });
+    const contentLength = response.headers.get('Content-Length');
+    const total = contentLength ? parseInt(contentLength, 10) : 0;
+
+    if (!response.body) {
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      blobUrlCache[url] = blobUrl;
+      return blobUrl;
+    }
+
+    const reader = response.body.getReader();
+    const chunks = [];
+    let loaded = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      loaded += value.length;
+      if (total > 0) {
+        showProgress(loaded / total);
+      } else {
+        showProgress(Math.min(0.9, loaded / (loaded + 100000)));
+      }
+    }
+
+    if (controller.signal.aborted) return null;
+
+    const blob = new Blob(chunks, {
+      type: response.headers.get('Content-Type') || 'image/jpeg'
+    });
+    const blobUrl = URL.createObjectURL(blob);
+    blobUrlCache[url] = blobUrl;
+    activeFetchController = null;
+    return blobUrl;
+  }
+
+  function revokeStaleBlobUrls() {
+    const keepUrls = new Set();
+    const currentIdx = globalState.displayedImageIndex;
+    const buffer = globalState.maxPreloadCount;
+    for (let i = currentIdx - buffer; i <= currentIdx + buffer; i++) {
+      if (i >= 0 && i < globalState.imageUrls.length) {
+        keepUrls.add(globalState.imageUrls[i]);
+      }
+    }
+    for (const originalUrl in blobUrlCache) {
+      if (!keepUrls.has(originalUrl)) {
+        URL.revokeObjectURL(blobUrlCache[originalUrl]);
+        delete blobUrlCache[originalUrl];
+      }
+    }
+  }
+
   function backToNormal() {
     updateGalleryState({ galleryOn: false });
+    cancelActiveFetch();
+    resetProgress();
+
+    for (const url in blobUrlCache) {
+      URL.revokeObjectURL(blobUrlCache[url]);
+      delete blobUrlCache[url];
+    }
+
     $("#galleryViewWrapper, #blackBackground").hide();
     $("body").removeClass("gallery-mode");
-    
+
     $(".help-menu-button").remove();
     $(".help-menu-wrapper").remove();
-    
+
     try {
       document.getElementById("targetVideo").pause();
     } catch (error) {
@@ -239,12 +365,14 @@
     $("#blackBackground").off('click');
     $("#targetImg").off('click');
     $("#targetVideo").off('click');
+    document.removeEventListener('wheel', handleMouseWheel);
+    document.removeEventListener('mouseup', handleMouseButtons);
 
     resetGlobalState();
 
     // Scroll to the top of the page
     window.scrollTo(0, 0);
-}
+  }
 
   function resetGlobalState() {
     updateGalleryState({
@@ -303,6 +431,9 @@
   function redraw() {
     if (!globalState.galleryOn) return;
 
+    cancelActiveFetch();
+    revokeStaleBlobUrls();
+
     let newIndex = globalState.displayedImageIndex;
     const maxIndex = globalState.imageUrls.length - 1;
 
@@ -332,51 +463,60 @@
     try {
       if (thisImageType === "video") {
         targetImg.hide();
-        
-        // Check if already loaded in any preload slot
-        let videoReady = false;
-        for (let i = 0; i < globalState.maxPreloadCount; i++) {
-          const preloadVideo = $(`#targetVideo_preload${i}`);
-          if (preloadVideo.length && preloadVideo.attr('src') === currentUrl && preloadVideo[0].readyState >= 3) {
-            videoReady = true;
-            break;
+
+        targetVideo.hide().attr("src", currentUrl);
+        targetVideo.off('canplay.display').one('canplay.display', () => {
+          if (globalState.imageUrls[globalState.displayedImageIndex] === currentUrl && globalState.galleryOn) {
+            targetVideo.show();
           }
-        }
-        
-        if (videoReady) {
-          targetVideo.show().attr("src", currentUrl);
-        } else {
-          // Hide and load, show when ready
-          targetVideo.hide().attr("src", currentUrl);
-          targetVideo.off('canplay.display').one('canplay.display', () => {
-            if (globalState.imageUrls[globalState.displayedImageIndex] === currentUrl && globalState.galleryOn) {
-              targetVideo.show();
-            }
-          });
-        }
+        });
       } else {
         targetVideo.hide();
-        
-        // Check if already loaded in any preload slot
+
         let imageReady = false;
-        for (let i = 0; i < globalState.maxPreloadCount; i++) {
-          const preloadImg = $(`#targetImg_preload${i}`);
-          if (preloadImg.length && preloadImg.attr('src') === currentUrl && util.isImageDone(preloadImg)) {
-            imageReady = true;
-            break;
+        if (blobUrlCache[currentUrl]) {
+          imageReady = true;
+        } else {
+          for (let i = 0; i < globalState.maxPreloadCount; i++) {
+            const preloadImg = $(`#targetImg_preload${i}`);
+            if (preloadImg.length && preloadImg.attr('src') === currentUrl && util.isImageDone(preloadImg)) {
+              imageReady = true;
+              break;
+            }
           }
         }
-        
+
         if (imageReady) {
-          targetImg.show().attr("src", currentUrl);
+          resetProgress();
+          const src = blobUrlCache[currentUrl] || currentUrl;
+          showImageCleanly(targetImg, src);
         } else {
-          // Hide and load, show when ready
-          targetImg.hide().attr("src", currentUrl);
-          targetImg.off('load.display').one('load.display', () => {
-            if (globalState.imageUrls[globalState.displayedImageIndex] === currentUrl && globalState.galleryOn) {
-              targetImg.show();
-            }
-          });
+          const probe = new Image();
+          probe.src = currentUrl;
+          if (probe.complete && probe.naturalWidth > 0) {
+            resetProgress();
+            showImageCleanly(targetImg, currentUrl);
+          } else {
+            targetImg.hide();
+            const drawCount = globalState.redrawCount;
+
+            fetchImageWithProgress(currentUrl).then(blobUrl => {
+              if (drawCount !== globalState.redrawCount || !globalState.galleryOn) return;
+              if (blobUrl) {
+                hideProgress();
+                showImageCleanly(targetImg, blobUrl);
+              }
+            }).catch(() => {
+              if (drawCount !== globalState.redrawCount || !globalState.galleryOn) return;
+              resetProgress();
+              targetImg.attr("src", currentUrl).hide();
+              targetImg.off('load.display').one('load.display', () => {
+                if (globalState.imageUrls[globalState.displayedImageIndex] === currentUrl && globalState.galleryOn) {
+                  targetImg.show();
+                }
+              });
+            });
+          }
         }
       }
     } catch (error) {
@@ -390,25 +530,25 @@
   function setupDragAndDrop() {
     const list = document.getElementById('displayOptionsList');
     if (!list) return;
-    
+
     let draggedItem = null;
     let lastUpdateTime = 0;
-    
-    list.addEventListener('dragstart', function(e) {
+
+    list.addEventListener('dragstart', function (e) {
       if (!e.target.classList.contains('drag-handle')) {
         e.preventDefault();
         return;
       }
-      
+
       draggedItem = e.target.closest('li');
       if (draggedItem) {
         e.dataTransfer.effectAllowed = 'move';
         draggedItem.classList.add('dragging');
-        
+
         const labelId = draggedItem.getAttribute('data-label-id');
         const settingKey = draggedItem.getAttribute('data-setting-key');
         const isShown = settingsModule.settings[settingKey];
-        
+
         if (!isShown) {
           const existingTemp = $(`#${labelId}_temp`);
           if (existingTemp.length) {
@@ -435,8 +575,8 @@
         }
       }
     });
-    
-    list.addEventListener('dragend', function(e) {
+
+    list.addEventListener('dragend', function (e) {
       if (draggedItem) {
         draggedItem.classList.remove('dragging');
         const labelId = draggedItem.getAttribute('data-label-id');
@@ -444,14 +584,14 @@
         $(`#${labelId}_drag_ghost`).remove();
       }
     });
-    
-    list.addEventListener('dragover', function(e) {
+
+    list.addEventListener('dragover', function (e) {
       if (!draggedItem) return;
-      
+
       e.preventDefault();
       const afterElement = getDragAfterElement(list, e.clientY);
       const noDragItem = list.querySelector('.help-item-no-drag');
-      
+
       if (afterElement == null) {
         if (noDragItem) {
           list.insertBefore(draggedItem, noDragItem);
@@ -461,7 +601,7 @@
       } else {
         list.insertBefore(draggedItem, afterElement);
       }
-      
+
       const now = Date.now();
       if (now - lastUpdateTime > 50) {
         lastUpdateTime = now;
@@ -471,7 +611,7 @@
           if (labelId) newOrder.push(labelId);
         });
         settingsModule.settings.displayOrder = newOrder;
-        
+
         const labelId = draggedItem.getAttribute('data-label-id');
         const settingKey = draggedItem.getAttribute('data-setting-key');
         const isShown = settingsModule.settings[settingKey];
@@ -488,10 +628,10 @@
         }
       }
     });
-    
-    list.addEventListener('drop', function(e) {
+
+    list.addEventListener('drop', function (e) {
       e.preventDefault();
-      
+
       const newOrder = [];
       list.querySelectorAll('li:not(.help-item-no-drag)').forEach(li => {
         const labelId = li.getAttribute('data-label-id');
@@ -502,11 +642,11 @@
       updateLabelsOrder();
     });
   }
-  
+
   function showDragGhostAtPosition(labelId, ghostElement) {
     const displayOrder = settingsModule.settings.displayOrder || [];
     const labelIndex = displayOrder.indexOf(labelId);
-    
+
     const visibleBeforeLabels = [];
     for (let i = 0; i < labelIndex; i++) {
       const beforeId = displayOrder[i];
@@ -518,7 +658,7 @@
         }
       }
     }
-    
+
     ghostElement.detach();
     if (visibleBeforeLabels.length === 0) {
       const firstLabel = $("#labelZone .label").first();
@@ -532,16 +672,16 @@
       $(`#${lastVisibleId}`).after(ghostElement);
     }
   }
-  
+
   function updateLabelsOrder() {
     const displayOrder = settingsModule.settings.displayOrder || [];
     const visibleLabels = labels.filter(label => {
-      return label.condition(settingsModule.settings, globalState) && 
-             label.id !== 'displayOptionsMenu' && 
-             label.id !== 'keyboardShortcutsMenu' &&
-             label.id !== 'postText';
+      return label.condition(settingsModule.settings, globalState) &&
+        label.id !== 'displayOptionsMenu' &&
+        label.id !== 'keyboardShortcutsMenu' &&
+        label.id !== 'postText';
     });
-    
+
     const sortedLabels = [...visibleLabels].sort((a, b) => {
       const indexA = displayOrder.indexOf(a.id);
       const indexB = displayOrder.indexOf(b.id);
@@ -550,35 +690,35 @@
       if (indexB === -1) return -1;
       return indexA - indexB;
     });
-    
+
     const labelHtml = sortedLabels.map(label => createLabel(label.id, label.content, label.temporary))
       .join('');
 
     const dragGhost = $("#labelZone").find('[id$="_drag_ghost"]').detach();
     const tempPreview = $("#labelZone").find('[id$="_temp"]').detach();
-    
+
     $("#labelZone").html(labelHtml);
-    
+
     if (dragGhost.length) {
       const ghostId = dragGhost.attr('id');
       const labelId = ghostId.replace('_drag_ghost', '');
       showDragGhostAtPosition(labelId, dragGhost);
     }
-    
+
     if (tempPreview.length) {
       const tempId = tempPreview.attr('id');
       const labelId = tempId.replace('_temp', '');
       showDragGhostAtPosition(labelId, tempPreview);
     }
   }
-  
+
   function getDragAfterElement(container, y) {
     const draggableElements = [...container.querySelectorAll('li:not(.dragging):not(.help-item-no-drag)')];
-    
+
     return draggableElements.reduce((closest, child) => {
       const box = child.getBoundingClientRect();
       const offset = y - box.top - box.height / 2;
-      
+
       if (offset < 0 && offset > closest.offset) {
         return { offset: offset, element: child };
       } else {
@@ -586,39 +726,39 @@
       }
     }, { offset: Number.NEGATIVE_INFINITY }).element;
   }
-  
+
   let redrawLabelsPending = false;
-  
+
   function redrawLabels() {
     if (!globalState.galleryOn) return;
     if (redrawLabelsPending) {
       return;
     }
-    
+
     redrawLabelsPending = true;
     setTimeout(() => {
       redrawLabelsNow();
       redrawLabelsPending = false;
     }, 0);
   }
-  
+
   function redrawLabelsNow() {
     if (!globalState.galleryOn) return;
-    
+
     $(document).find(".label").remove();
     $(document).find(".help-menu-button").remove();
     $(document).find(".help-menu-wrapper").remove();
     $("#postTextZone").remove();
-    
+
     const displayOrder = settingsModule.settings.displayOrder || [];
-    
+
     const visibleLabels = labels.filter(label => {
-      return label.condition(settingsModule.settings, globalState) && 
-             label.id !== 'displayOptionsMenu' && 
-             label.id !== 'keyboardShortcutsMenu' &&
-             label.id !== 'postText';
+      return label.condition(settingsModule.settings, globalState) &&
+        label.id !== 'displayOptionsMenu' &&
+        label.id !== 'keyboardShortcutsMenu' &&
+        label.id !== 'postText';
     });
-    
+
     const sortedLabels = [...visibleLabels].sort((a, b) => {
       const indexA = displayOrder.indexOf(a.id);
       const indexB = displayOrder.indexOf(b.id);
@@ -627,12 +767,12 @@
       if (indexB === -1) return -1;
       return indexA - indexB;
     });
-    
+
     const labelHtml = sortedLabels.map(label => createLabel(label.id, label.content, label.temporary))
       .join('');
 
     $("#labelZone").html(labelHtml);
-    
+
     if (settingsModule.settings.postTextShown) {
       const postTextLabel = labels.find(l => l.id === 'postText');
       if (postTextLabel && postTextLabel.condition(settingsModule.settings, globalState)) {
@@ -643,23 +783,23 @@
         }
       }
     }
-    
+
     if (settingsModule.settings.helpButtonShown && !globalState.distractionFreeMode) {
       const displayOptionsButton = $('<div id="displayOptionsButton" class="help-menu-button">⚙</div>');
-      displayOptionsButton.on('click', function(e) {
+      displayOptionsButton.on('click', function (e) {
         e.stopPropagation();
-        updateGalleryState({ 
+        updateGalleryState({
           displayOptionsShown: !globalState.displayOptionsShown,
           keyboardShortcutsShown: false
         });
         redraw();
       });
       $('body').append(displayOptionsButton);
-      
+
       const keyboardShortcutsButton = $('<div id="keyboardShortcutsButton" class="help-menu-button">?</div>');
-      keyboardShortcutsButton.on('click', function(e) {
+      keyboardShortcutsButton.on('click', function (e) {
         e.stopPropagation();
-        updateGalleryState({ 
+        updateGalleryState({
           keyboardShortcutsShown: !globalState.keyboardShortcutsShown,
           displayOptionsShown: false
         });
@@ -667,7 +807,7 @@
       });
       $('body').append(keyboardShortcutsButton);
     }
-    
+
     if (globalState.displayOptionsShown && !globalState.distractionFreeMode) {
       const displayOptionsLabel = labels.find(l => l.id === 'displayOptionsMenu');
       if (displayOptionsLabel) {
@@ -680,7 +820,7 @@
         }
       }
     }
-    
+
     if (globalState.keyboardShortcutsShown && !globalState.distractionFreeMode) {
       const keyboardShortcutsLabel = labels.find(l => l.id === 'keyboardShortcutsMenu');
       if (keyboardShortcutsLabel) {
@@ -693,17 +833,17 @@
         }
       }
     }
-    
+
     setupDragAndDrop();
-    
-    $(".help-menu-wrapper").off('click').on('click', function(e) {
+
+    $(".help-menu-wrapper").off('click').on('click', function (e) {
       e.stopPropagation();
     });
-    
+
     if (globalState.displayOptionsShown || globalState.keyboardShortcutsShown) {
-      $(document).off('click.dismissMenus').on('click.dismissMenus', function(e) {
+      $(document).off('click.dismissMenus').on('click.dismissMenus', function (e) {
         if (!$(e.target).closest('.help-menu-wrapper, .help-menu-button').length) {
-          updateGalleryState({ 
+          updateGalleryState({
             displayOptionsShown: false,
             keyboardShortcutsShown: false
           });
@@ -712,35 +852,35 @@
         }
       });
     }
-    
-    $(".help-item-toggleable").off('click mouseenter mouseleave').on('click', function(e) {
+
+    $(".help-item-toggleable").off('click mouseenter mouseleave').on('click', function (e) {
       e.stopPropagation();
       const $item = $(this);
       const labelId = $item.attr('data-label-id');
       const settingKey = $item.attr('data-setting-key');
-      
+
       $(`#${labelId}`).removeClass('help-highlight');
       $(`#${labelId}_temp`).remove();
-      
+
       if (settingKey && settingsModule.settings.hasOwnProperty(settingKey)) {
         settingsModule.settings[settingKey] = !settingsModule.settings[settingKey];
         settingsModule.saveSettings(false);
-        
+
         $item.addClass('help-item-just-clicked');
         setTimeout(() => {
           $item.removeClass('help-item-just-clicked');
         }, 500);
-        
+
         redraw();
       }
-    }).on('mouseenter', function() {
+    }).on('mouseenter', function () {
       const $item = $(this);
       if ($item.hasClass('help-item-just-clicked')) return;
-      
+
       const labelId = $item.attr('data-label-id');
       const settingKey = $item.attr('data-setting-key');
       const isShown = settingsModule.settings[settingKey];
-      
+
       if (isShown) {
         $(`#${labelId}`).addClass('help-highlight');
       } else {
@@ -751,10 +891,10 @@
             if (tempContent) {
               const tempLabel = $(`<div id="${labelId}_temp" class="label outlined-text help-highlight help-temp-preview"></div>`);
               tempLabel.text(tempContent);
-              
+
               const displayOrder = settingsModule.settings.displayOrder || [];
               const labelIndex = displayOrder.indexOf(labelId);
-              
+
               const visibleBeforeLabels = [];
               for (let i = 0; i < labelIndex && i < displayOrder.length; i++) {
                 const beforeId = displayOrder[i];
@@ -766,7 +906,7 @@
                   }
                 }
               }
-              
+
               if (visibleBeforeLabels.length === 0) {
                 const firstLabel = $("#labelZone .label").first();
                 if (firstLabel.length) {
@@ -784,25 +924,25 @@
           }
         }
       }
-    }).on('mouseleave', function() {
+    }).on('mouseleave', function () {
       const labelId = $(this).attr('data-label-id');
       $(`#${labelId}`).removeClass('help-highlight');
       if (!$(`#${labelId}_drag_ghost`).length) {
         $(`#${labelId}_temp`).remove();
       }
     });
-    
-    $(".fadeout-label").each(function() {
+
+    $(".fadeout-label").each(function () {
       const $label = $(this);
       $label.removeClass("fadeout-label");
-      $label.delay(LABEL_FADE_DELAY).fadeOut(LABEL_FADE_DURATION, function() {
+      $label.delay(LABEL_FADE_DELAY).fadeOut(LABEL_FADE_DURATION, function () {
         $label.remove();
       });
     });
   }
 
   function createLabel(id, content, temporary) {
-    if (temporary){
+    if (temporary) {
       return `<div id="${id}" class='outlined-text save-state-label label fadeout-label'>AA</div>`;
     }
     try {
@@ -816,7 +956,7 @@
 
 
   const downloadedAlready = {};
-  let downloadingFilename="";
+  let downloadingFilename = "";
 
   async function fastSaveImage() {
     const currentUrl = globalState.imageUrls[globalState.displayedImageIndex];
@@ -827,8 +967,8 @@
 
     try {
       const filename = globalState.originalImageNames[globalState.displayedImageIndex] || 'GalleryWG_Nameless';
-      
-      if (downloadedAlready[currentUrl]){
+
+      if (downloadedAlready[currentUrl]) {
         showInfo(INFO.ALREADY_DOWNLOADED);
         updateGalleryState({ doSave: false });
         return;
@@ -858,7 +998,7 @@
 
   function setKeyboardShortcuts() {
     $(document).keydown(handleShortcut);
-    document.addEventListener('wheel', handleMouseWheel);
+    document.addEventListener('wheel', handleMouseWheel, { passive: false });
     document.addEventListener('mouseup', handleMouseButtons);
   }
 
@@ -874,43 +1014,44 @@
   }
 
   function handleMouseWheel(e) {
+    e.preventDefault();
+    e.stopPropagation();
     updateGalleryState({
       displayedImageIndex: globalState.displayedImageIndex + (e.deltaY < 0 ? -1 : 1),
       displayOptionsShown: false,
       keyboardShortcutsShown: false
     }, true);
-    e.stopPropagation();
   }
 
-  let debounce='';
+  let debounce = '';
 
   function handleShortcut(e) {
     const key = e.key;
-    if (key==debounce){
+    if (key == debounce) {
       return;
     }
 
     const maintainDistractionFreeModeKeys = [
       'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 's', 'PageUp', 'PageDown',
-      'Ctrl+ArrowLeft', 'Ctrl+ArrowRight', 'Ctrl+ArrowUp', 'Ctrl+ArrowDown', 
+      'Ctrl+ArrowLeft', 'Ctrl+ArrowRight', 'Ctrl+ArrowUp', 'Ctrl+ArrowDown',
       'Ctrl+PageUp', 'Ctrl+PageDown'
     ];
     if (key == "Control") {
       return;
     }
-    
+
     const currentKey = e.ctrlKey ? `Ctrl+${key}` : key;
-    
+
 
     if (globalState.distractionFreeMode && !maintainDistractionFreeModeKeys.includes(currentKey)) {
-      updateGalleryState({ 
+      updateGalleryState({
         distractionFreeMode: false,
         displayOptionsShown: false,
         keyboardShortcutsShown: false
       });
       toggleDistractionFreeUI(false);
       redraw();
-      
+
       if (key === 'd') {
         e.preventDefault();
         return;
@@ -919,32 +1060,32 @@
 
     for (const label of labels) {
       if (!label.shortcut) continue;
-      
+
       const shortcuts = Array.isArray(label.shortcut) ? label.shortcut : [label.shortcut];
-      
+
       for (const shortcut of shortcuts) {
         if (!shortcut) continue;
-        
+
         let matches = false;
-        
+
         if (shortcut.startsWith('Ctrl+')) {
           const keyPart = shortcut.substring(5);
           matches = e.ctrlKey && key === keyPart;
         } else {
           matches = !e.ctrlKey && key === shortcut;
         }
-        
+
         if (matches) {
-          debounce=key;
+          debounce = key;
           label.action(settingsModule.settings, globalState);
-          
+
           if (label.modifiesSettings) {
             settingsModule.saveSettings(false);
           }
-          
+
           redraw();
 
-          if (globalState.doSave){
+          if (globalState.doSave) {
             //big hack, using the label's action to screw with globalState to force a save.
             fastSaveImage();
           }
@@ -954,15 +1095,15 @@
             backToNormal();
             updateGalleryState({ doExit: false });
           }
-          debounce='';
+          debounce = '';
           return;
         }
       }
     }
-    debounce='';
+    debounce = '';
   }
 
-  window.openOptionsPage = async function() {
+  window.openOptionsPage = async function () {
     try {
       await browser.runtime.sendMessage({
         command: 'openOptions'
@@ -973,7 +1114,7 @@
     }
   };
 
-  window.toggleDistractionFreeUI = function(hide) {
+  window.toggleDistractionFreeUI = function (hide) {
     if (hide) {
       $("#labelZone").fadeOut(200);
     } else {
