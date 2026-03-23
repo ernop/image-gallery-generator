@@ -464,10 +464,14 @@
       if (thisImageType === "video") {
         targetImg.hide();
 
-        targetVideo.hide().attr("src", currentUrl);
+        targetVideo.hide();
+        const videoEl = targetVideo[0];
+        videoEl.src = currentUrl;
+        videoEl.load();
         targetVideo.off('canplay.display').one('canplay.display', () => {
           if (globalState.imageUrls[globalState.displayedImageIndex] === currentUrl && globalState.galleryOn) {
             targetVideo.show();
+            videoEl.play().catch(() => {});
           }
         });
       } else {
