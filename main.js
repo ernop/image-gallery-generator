@@ -225,11 +225,16 @@
 
   const blobUrlCache = {};
   let activeFetchController = null;
+  let hideProgressTimer = null;
 
   function showProgress(fraction) {
     if (!settingsModule.settings.progressBarShown) return;
     const bar = document.getElementById('loadingProgressBar');
     if (!bar) return;
+    if (hideProgressTimer) {
+      clearTimeout(hideProgressTimer);
+      hideProgressTimer = null;
+    }
     bar.classList.remove('done');
     bar.classList.add('active');
     bar.style.width = (fraction * 100) + '%';
@@ -238,16 +243,22 @@
   function hideProgress() {
     const bar = document.getElementById('loadingProgressBar');
     if (!bar) return;
+    if (hideProgressTimer) clearTimeout(hideProgressTimer);
     bar.classList.add('done');
-    setTimeout(() => {
+    hideProgressTimer = setTimeout(() => {
       bar.classList.remove('active', 'done');
       bar.style.width = '0%';
+      hideProgressTimer = null;
     }, 600);
   }
 
   function resetProgress() {
     const bar = document.getElementById('loadingProgressBar');
     if (!bar) return;
+    if (hideProgressTimer) {
+      clearTimeout(hideProgressTimer);
+      hideProgressTimer = null;
+    }
     bar.classList.remove('active', 'done');
     bar.style.width = '0%';
   }
@@ -256,6 +267,10 @@
     const el = $img[0];
     $img.hide();
     el.src = src;
+    if (el.complete && el.naturalWidth > 0) {
+      if (globalState.galleryOn) $img.show();
+      return;
+    }
     if (el.decode) {
       el.decode().then(() => {
         if (globalState.galleryOn) $img.show();
@@ -432,6 +447,7 @@
     if (!globalState.galleryOn) return;
 
     cancelActiveFetch();
+    resetProgress();
     revokeStaleBlobUrls();
 
     let newIndex = globalState.displayedImageIndex;
@@ -495,31 +511,53 @@
           const src = blobUrlCache[currentUrl] || currentUrl;
           showImageCleanly(targetImg, src);
         } else {
+          targetImg.hide();
+          const drawCount = globalState.redrawCount;
+
+          // Let the browser try loading from its HTTP/disk cache first.
+          // If it resolves quickly we skip the streaming fetch entirely.
           const probe = new Image();
           probe.src = currentUrl;
+
           if (probe.complete && probe.naturalWidth > 0) {
             resetProgress();
             showImageCleanly(targetImg, currentUrl);
           } else {
-            targetImg.hide();
-            const drawCount = globalState.redrawCount;
+            let resolved = false;
 
-            fetchImageWithProgress(currentUrl).then(blobUrl => {
-              if (drawCount !== globalState.redrawCount || !globalState.galleryOn) return;
-              if (blobUrl) {
-                hideProgress();
-                showImageCleanly(targetImg, blobUrl);
-              }
-            }).catch(() => {
+            const cacheLoadHandler = () => {
+              if (resolved) return;
+              resolved = true;
               if (drawCount !== globalState.redrawCount || !globalState.galleryOn) return;
               resetProgress();
-              targetImg.attr("src", currentUrl).hide();
-              targetImg.off('load.display').one('load.display', () => {
-                if (globalState.imageUrls[globalState.displayedImageIndex] === currentUrl && globalState.galleryOn) {
-                  targetImg.show();
+              showImageCleanly(targetImg, currentUrl);
+            };
+
+            probe.addEventListener('load', cacheLoadHandler, { once: true });
+
+            // Short grace period for browser cache hits before starting streaming fetch
+            setTimeout(() => {
+              if (resolved || drawCount !== globalState.redrawCount) return;
+              resolved = true;
+              probe.removeEventListener('load', cacheLoadHandler);
+
+              fetchImageWithProgress(currentUrl).then(blobUrl => {
+                if (drawCount !== globalState.redrawCount || !globalState.galleryOn) return;
+                if (blobUrl) {
+                  hideProgress();
+                  showImageCleanly(targetImg, blobUrl);
                 }
+              }).catch(() => {
+                if (drawCount !== globalState.redrawCount || !globalState.galleryOn) return;
+                resetProgress();
+                targetImg.attr("src", currentUrl).hide();
+                targetImg.off('load.display').one('load.display', () => {
+                  if (globalState.imageUrls[globalState.displayedImageIndex] === currentUrl && globalState.galleryOn) {
+                    targetImg.show();
+                  }
+                });
               });
-            });
+            }, 50);
           }
         }
       }
