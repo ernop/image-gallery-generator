@@ -22,7 +22,6 @@ let settingsModule = {
           console.log('Settings loaded successfully');
         }else{
           console.info('No saved settings found, using defaults');
-          settingsModule.optionsHtmlPageInfo("No saved settings found. Using defaults.");
           settingsModule.settings = settingsModule.privateApplyDefaultSettings({});
         }
       });
@@ -232,6 +231,8 @@ let settingsModule = {
       //default to what they are now at least.
       settingsModule.lastSavedSettings = settingsModule.pullSettingsFromHtml();
     }
+
+    settingsModule.setSettingsAsHavingUnsavedChanges(false);
 
     // Now attach change listeners after initial values are set
     document.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
