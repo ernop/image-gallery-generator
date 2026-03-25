@@ -271,15 +271,11 @@
       if (globalState.galleryOn) $img.show();
       return;
     }
-    if (el.decode) {
-      el.decode().then(() => {
-        if (globalState.galleryOn) $img.show();
-      }).catch(() => {
-        if (globalState.galleryOn) $img.show();
-      });
-    } else {
-      $img.show();
-    }
+    // Use load event, not decode() — fires as soon as image data is
+    // available rather than waiting for full rasterization.
+    $img.off('load.cleanShow').one('load.cleanShow', () => {
+      if (globalState.galleryOn) $img.show();
+    });
   }
 
   function cancelActiveFetch() {
@@ -492,6 +488,7 @@
         });
       } else {
         targetVideo.hide();
+        try { targetVideo[0].pause(); } catch (_) {}
 
         let imageReady = false;
         if (blobUrlCache[currentUrl]) {
@@ -507,57 +504,44 @@
         }
 
         if (imageReady) {
-          resetProgress();
           const src = blobUrlCache[currentUrl] || currentUrl;
           showImageCleanly(targetImg, src);
         } else {
           targetImg.hide();
           const drawCount = globalState.redrawCount;
+          const stale = () => drawCount !== globalState.redrawCount || !globalState.galleryOn;
 
-          // Let the browser try loading from its HTTP/disk cache first.
-          // If it resolves quickly we skip the streaming fetch entirely.
+          // Race: native browser load (wins instantly from cache) vs
+          // streaming fetch (provides progress bar for uncached images).
+          // Whichever resolves first shows the image; the loser is ignored.
+          let resolved = false;
+
           const probe = new Image();
           probe.src = currentUrl;
 
           if (probe.complete && probe.naturalWidth > 0) {
-            resetProgress();
             showImageCleanly(targetImg, currentUrl);
           } else {
-            let resolved = false;
-
-            const cacheLoadHandler = () => {
-              if (resolved) return;
+            probe.addEventListener('load', () => {
+              if (resolved || stale()) return;
               resolved = true;
-              if (drawCount !== globalState.redrawCount || !globalState.galleryOn) return;
+              cancelActiveFetch();
               resetProgress();
               showImageCleanly(targetImg, currentUrl);
-            };
+            }, { once: true });
 
-            probe.addEventListener('load', cacheLoadHandler, { once: true });
-
-            // Short grace period for browser cache hits before starting streaming fetch
-            setTimeout(() => {
-              if (resolved || drawCount !== globalState.redrawCount) return;
+            fetchImageWithProgress(currentUrl).then(blobUrl => {
+              if (resolved || stale()) return;
               resolved = true;
-              probe.removeEventListener('load', cacheLoadHandler);
-
-              fetchImageWithProgress(currentUrl).then(blobUrl => {
-                if (drawCount !== globalState.redrawCount || !globalState.galleryOn) return;
-                if (blobUrl) {
-                  hideProgress();
-                  showImageCleanly(targetImg, blobUrl);
-                }
-              }).catch(() => {
-                if (drawCount !== globalState.redrawCount || !globalState.galleryOn) return;
-                resetProgress();
-                targetImg.attr("src", currentUrl).hide();
-                targetImg.off('load.display').one('load.display', () => {
-                  if (globalState.imageUrls[globalState.displayedImageIndex] === currentUrl && globalState.galleryOn) {
-                    targetImg.show();
-                  }
-                });
-              });
-            }, 50);
+              if (blobUrl) {
+                hideProgress();
+                showImageCleanly(targetImg, blobUrl);
+              }
+            }).catch(() => {
+              if (resolved || stale()) return;
+              // Fetch failed — fall back to native <img> load
+              // (probe may still be in progress and will show it)
+            });
           }
         }
       }
@@ -565,8 +549,14 @@
       showError(ERRORS.IMAGE_LOAD_FAILED, error);
     }
 
-    setPreloads();
-    redrawLabels();
+    // Defer preloading and label updates so they don't block the browser
+    // from painting the new image on screen.
+    requestAnimationFrame(() => {
+      if (globalState.galleryOn) {
+        setPreloads();
+        redrawLabels();
+      }
+    });
   }
 
   function setupDragAndDrop() {
