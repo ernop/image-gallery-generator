@@ -225,11 +225,16 @@
 
   const blobUrlCache = {};
   let activeFetchController = null;
+  let hideProgressTimer = null;
 
   function showProgress(fraction) {
     if (!settingsModule.settings.progressBarShown) return;
     const bar = document.getElementById('loadingProgressBar');
     if (!bar) return;
+    if (hideProgressTimer) {
+      clearTimeout(hideProgressTimer);
+      hideProgressTimer = null;
+    }
     bar.classList.remove('done');
     bar.classList.add('active');
     bar.style.width = (fraction * 100) + '%';
@@ -238,16 +243,22 @@
   function hideProgress() {
     const bar = document.getElementById('loadingProgressBar');
     if (!bar) return;
+    if (hideProgressTimer) clearTimeout(hideProgressTimer);
     bar.classList.add('done');
-    setTimeout(() => {
+    hideProgressTimer = setTimeout(() => {
       bar.classList.remove('active', 'done');
       bar.style.width = '0%';
+      hideProgressTimer = null;
     }, 600);
   }
 
   function resetProgress() {
     const bar = document.getElementById('loadingProgressBar');
     if (!bar) return;
+    if (hideProgressTimer) {
+      clearTimeout(hideProgressTimer);
+      hideProgressTimer = null;
+    }
     bar.classList.remove('active', 'done');
     bar.style.width = '0%';
   }
@@ -256,15 +267,15 @@
     const el = $img[0];
     $img.hide();
     el.src = src;
-    if (el.decode) {
-      el.decode().then(() => {
-        if (globalState.galleryOn) $img.show();
-      }).catch(() => {
-        if (globalState.galleryOn) $img.show();
-      });
-    } else {
-      $img.show();
+    if (el.complete && el.naturalWidth > 0) {
+      if (globalState.galleryOn) $img.show();
+      return;
     }
+    // Use load event, not decode() — fires as soon as image data is
+    // available rather than waiting for full rasterization.
+    $img.off('load.cleanShow').one('load.cleanShow', () => {
+      if (globalState.galleryOn) $img.show();
+    });
   }
 
   function cancelActiveFetch() {
@@ -432,6 +443,7 @@
     if (!globalState.galleryOn) return;
 
     cancelActiveFetch();
+    resetProgress();
     revokeStaleBlobUrls();
 
     let newIndex = globalState.displayedImageIndex;
@@ -476,6 +488,7 @@
         });
       } else {
         targetVideo.hide();
+        try { targetVideo[0].pause(); } catch (_) {}
 
         let imageReady = false;
         if (blobUrlCache[currentUrl]) {
@@ -491,34 +504,43 @@
         }
 
         if (imageReady) {
-          resetProgress();
           const src = blobUrlCache[currentUrl] || currentUrl;
           showImageCleanly(targetImg, src);
         } else {
+          targetImg.hide();
+          const drawCount = globalState.redrawCount;
+          const stale = () => drawCount !== globalState.redrawCount || !globalState.galleryOn;
+
+          // Race: native browser load (wins instantly from cache) vs
+          // streaming fetch (provides progress bar for uncached images).
+          // Whichever resolves first shows the image; the loser is ignored.
+          let resolved = false;
+
           const probe = new Image();
           probe.src = currentUrl;
+
           if (probe.complete && probe.naturalWidth > 0) {
-            resetProgress();
             showImageCleanly(targetImg, currentUrl);
           } else {
-            targetImg.hide();
-            const drawCount = globalState.redrawCount;
+            probe.addEventListener('load', () => {
+              if (resolved || stale()) return;
+              resolved = true;
+              cancelActiveFetch();
+              resetProgress();
+              showImageCleanly(targetImg, currentUrl);
+            }, { once: true });
 
             fetchImageWithProgress(currentUrl).then(blobUrl => {
-              if (drawCount !== globalState.redrawCount || !globalState.galleryOn) return;
+              if (resolved || stale()) return;
+              resolved = true;
               if (blobUrl) {
                 hideProgress();
                 showImageCleanly(targetImg, blobUrl);
               }
             }).catch(() => {
-              if (drawCount !== globalState.redrawCount || !globalState.galleryOn) return;
-              resetProgress();
-              targetImg.attr("src", currentUrl).hide();
-              targetImg.off('load.display').one('load.display', () => {
-                if (globalState.imageUrls[globalState.displayedImageIndex] === currentUrl && globalState.galleryOn) {
-                  targetImg.show();
-                }
-              });
+              if (resolved || stale()) return;
+              // Fetch failed — fall back to native <img> load
+              // (probe may still be in progress and will show it)
             });
           }
         }
@@ -527,8 +549,14 @@
       showError(ERRORS.IMAGE_LOAD_FAILED, error);
     }
 
-    setPreloads();
-    redrawLabels();
+    // Defer preloading and label updates so they don't block the browser
+    // from painting the new image on screen.
+    requestAnimationFrame(() => {
+      if (globalState.galleryOn) {
+        setPreloads();
+        redrawLabels();
+      }
+    });
   }
 
   function setupDragAndDrop() {
