@@ -2,3 +2,5 @@
 *.xpi
 web-ext-artifacts/
 .amo-upload-uuid
+settings.json
+curls.txt
