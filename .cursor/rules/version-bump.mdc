@@ -1,0 +1,44 @@
+---
+description: Bump version, sync Chrome, and remind to upload — on every code change
+alwaysApply: true
+---
+
+# After Every Code Change — Mandatory Checklist
+
+## 1. Bump the Patch Version
+
+1. Read `manifest.json` → `"version": "X.Y.Z"`
+2. Increment **Z** by 1
+3. Write the new version to **both** manifests:
+   - `manifest.json` (Firefox)
+   - `chrome/manifest.json` (Chrome)
+
+Only bump **once** per user request, not per file touched.
+
+## 2. Sync Shared Files to Chrome
+
+Any file that exists in **both** the root and `chrome/` must be kept in sync.
+After editing any of these shared files, copy them into `chrome/`:
+
+- `main.js`
+- `labelsModule.js`
+- `settingsModule.js`
+- `util.js`
+- `styles.css`
+
+**Do NOT overwrite** Chrome-specific files (`chrome/manifest.json`, `chrome/background.js`, `chrome/browser-polyfill.js`, `chrome/options.html`). Only update `"version"` in `chrome/manifest.json`.
+
+## 3. Remind to Upload
+
+After completing the change, **always** end your message with a reminder like:
+
+> **Don't forget to upload the new version (vX.Y.Z):**
+> - **Firefox**: https://addons.mozilla.org/developers/addon/4chan-gallery-mode-wg/versions
+> - **Chrome**: Chrome Web Store Developer Dashboard
+>
+> Need me to package the zips?
+
+## Rules
+
+- ALWAYS do all three steps, even for a one-line CSS fix.
+- Never skip version bumping. The gallery link reads the version at runtime.

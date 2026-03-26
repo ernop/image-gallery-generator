@@ -8,7 +8,7 @@
     "storage",
     "scripting"
   ],
-  "optional_permissions": [
+  "optional_host_permissions": [
     "<all_urls>"
   ],
   "action": {
@@ -16,6 +16,7 @@
   },
   "content_scripts": [{
     "js": [
+      "browser-polyfill.js",
       "jquery.js",
       "util.js",
       "settingsModule.js",
@@ -29,15 +30,14 @@
     ]
   }],
   "options_ui": {
-    "page": "options.html"
+    "page": "options.html",
+    "open_in_tab": true
   },
   "background": {
-    "scripts": ["background.js"]
+    "service_worker": "background.js"
   },
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "{2381ef0e-653b-4549-b953-27124405c12e}",
-      "strict_min_version": "109.0"
-    }
+  "icons": {
+    "48": "icon.png",
+    "128": "icon-128.png"
   }
 }

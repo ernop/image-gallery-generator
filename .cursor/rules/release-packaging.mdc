@@ -1,0 +1,38 @@
+---
+description: How to package and release Firefox and Chrome builds
+alwaysApply: false
+---
+
+# Release Packaging
+
+## Firefox
+
+```powershell
+cd d:\proj\4changal
+$v = (Get-Content manifest.json | ConvertFrom-Json).version
+$files = @("manifest.json","main.js","labelsModule.js","settingsModule.js","background.js","util.js","styles.css","options.html","jquery.js","icon.png","README.md")
+Compress-Archive -Path $files -DestinationPath "gallery-wg-$v.zip" -Force
+```
+
+Upload at: https://addons.mozilla.org/developers/addon/4chan-gallery-mode-wg/versions
+
+## Chrome
+
+First sync shared files, then package:
+
+```powershell
+Copy-Item -Path main.js,labelsModule.js,settingsModule.js,util.js,styles.css -Destination chrome\ -Force
+cd chrome
+$v = (Get-Content manifest.json | ConvertFrom-Json).version
+$files = @("manifest.json","browser-polyfill.js","background.js","main.js","labelsModule.js","settingsModule.js","util.js","styles.css","options.html","jquery.js","icon.png","README.md")
+Compress-Archive -Path $files -DestinationPath "..\gallery-wg-chrome-$v.zip" -Force
+```
+
+Upload at: Chrome Web Store Developer Dashboard.
+
+## Chrome-specific files (do NOT overwrite from Firefox)
+
+- `chrome/manifest.json` — service_worker, optional_host_permissions, browser-polyfill in content_scripts
+- `chrome/background.js` — uses chrome.* directly (no polyfill in service workers)
+- `chrome/browser-polyfill.js` — maps browser.* → chrome.* for content scripts
+- `chrome/options.html` — uses bundled jquery.js, not CDN

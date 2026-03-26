@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Options configuration for gallery mode WG</title>
+    <meta charset="utf-8">
+    <link rel="stylesheet" type="text/css" href="styles.css">
+    <script src="jquery.js"></script>
+    <script src="browser-polyfill.js"></script>
+  </head>
+
+  <body id="galleryWGOptionsBody">
+    <h1>Options:</h1>
+    <p class="options-autosave-note">Changes save automatically.</p>
+    <h2>Labels</h2>
+    <form id="galleryOptions">
+      <table class="options-table">
+        <thead>
+          <tr><th></th><th>Option</th><th>Example</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><input type="checkbox" id="imageCountShown"></td>
+            <td><label for="imageCountShown">Image count</label></td>
+            <td><code> 3 / 47</code></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" id="imageFilenameShown"></td>
+            <td><label for="imageFilenameShown">Filename</label></td>
+            <td><code>autumn_forest.jpg</code></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" id="imageResolutionShown"></td>
+            <td><label for="imageResolutionShown">Resolution</label></td>
+            <td><code>1920x1080</code></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" id="imageMegapixelsShown"></td>
+            <td><label for="imageMegapixelsShown">Megapixels</label></td>
+            <td><code>2.1m</code></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" id="preloadLabelShown"></td>
+            <td><label for="preloadLabelShown">Preload count</label></td>
+            <td><code>5</code></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" id="anyImagePreloadedLabelShown"></td>
+            <td><label for="anyImagePreloadedLabelShown">Preload indicator</label></td>
+            <td><code>.</code></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" id="postTimeShown"></td>
+            <td><label for="postTimeShown">Post time</label></td>
+            <td><code>3 hours ago</code></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" id="postTextShown"></td>
+            <td><label for="postTextShown">Post text</label></td>
+            <td><code>Can anyone ID this location?</code></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>UI Elements</h2>
+      <table class="options-table">
+        <thead>
+          <tr><th></th><th>Option</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><input type="checkbox" id="helpButtonShown"></td>
+            <td><label for="helpButtonShown">Help buttons</label></td>
+            <td><code>⚙</code> and <code>?</code> buttons in gallery corners</td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" id="progressBarShown"></td>
+            <td><label for="progressBarShown">Loading progress bar</label></td>
+            <td>Thin bar at bottom showing image download progress</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Navigation</h2>
+      <label><input type="checkbox" id="loopNavigation">Loop navigation (wrap around at first/last image)</label>
+
+      <h2>Custom Sites</h2>
+      <p><code>example.com</code> → matches example.com and all subdomains</p>
+      <ol id="customSitesSteps">
+        <li>Enter domain(s), one per line</li>
+        <li>Click "Grant Permission" — browser will prompt</li>
+        <li>Domains and other options are saved automatically</li>
+      </ol>
+      <textarea id="customSitePatterns" rows="4" cols="50"></textarea>
+      <br /><button type="button" id="enableCustomSites">Grant Permission</button>
+      <span id="customSitesStatus"></span>
+       <p />These options are saved locally in this browser, so they don't persist across computers.
+
+      <div id="output"></div>
+    </form>
+    <script src="util.js"></script>
+    <script src="settingsModule.js"></script>
+  </body>
+</html>

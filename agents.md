@@ -5,7 +5,7 @@ This is a Firefox browser extension that adds gallery mode to 4chan threads. Sta
 ## What This Extension Does
 
 Transforms 4chan thread browsing into a fullscreen gallery experience:
-- Click "GalleryMode WG6" link in thread navigation to enter gallery
+- Click "GalleryMode \<version\>" link in thread navigation to enter gallery
 - Navigate images/videos with keyboard, mouse wheel, or mouse side buttons
 - Fast-save images with a single keypress
 - Toggle metadata overlays (resolution, filename, count)
@@ -43,6 +43,15 @@ Adding a new shortcut = adding an object to this array. No other wiring needed.
 - `displayedImageIndex` - current position
 - `galleryOn`, `distractionFreeMode`, `helpShown` - UI state
 - `preloadCount` - preloading progress
+
+## Version Bumping — MANDATORY
+
+**Every time you make a code change (no matter how small), bump the patch version in `manifest.json`.**
+
+- The version field is `"version": "MAJOR.MINOR.PATCH"` (e.g. `"0.0.32"`).
+- Increment the PATCH number by 1 for each change set.
+- Do this **before** testing or packaging.
+- The gallery nav link reads the version from the manifest at runtime, so no other file needs updating.
 
 ## Development
 

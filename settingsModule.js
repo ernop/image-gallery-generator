@@ -20,9 +20,9 @@ let settingsModule = {
           settingsModule.settings = settingsModule.privateApplyDefaultSettings(result.settings);
           console.log('Settings loaded successfully');
         }else{
-          console.info('No saved settings found, using defaults');
-          settingsModule.optionsHtmlPageInfo("No saved settings found. Using defaults.");
+          console.info('No saved settings found, creating defaults');
           settingsModule.settings = settingsModule.privateApplyDefaultSettings({});
+          settingsModule.saveSettings(false, { silent: true });
         }
       });
     }catch(error){
@@ -245,6 +245,17 @@ let settingsModule = {
     document.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
       checkbox.addEventListener('change', () => {
         settingsModule.persistOptionsPageSettings();
+      });
+    });
+
+    document.querySelectorAll('.options-table tbody tr').forEach((row) => {
+      row.addEventListener('click', (e) => {
+        if (e.target.tagName === 'INPUT') return;
+        const checkbox = row.querySelector('input[type="checkbox"]');
+        if (checkbox) {
+          checkbox.checked = !checkbox.checked;
+          checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+        }
       });
     });
 

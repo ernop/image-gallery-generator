@@ -1,0 +1,30 @@
+---
+description: How to upload the Firefox extension to AMO using web-ext and local API credentials
+alwaysApply: true
+---
+
+# Firefox AMO Upload
+
+Upload the extension to Mozilla Add-ons using `web-ext sign` and the JWT credentials in `settings.json` (project root).
+
+## Command
+
+```powershell
+cd d:\proj\4changal
+web-ext sign --api-key="<JWT Issuer from settings.json>" --api-secret="<JWT secret from settings.json>" --channel=listed --ignore-files "chrome/**" "*.zip" "settings.json" ".cursor/**" ".cursorrules" "curls.txt" "agents.md" "LICENSE" ".gitignore" ".amo-upload-uuid" "web-ext-artifacts/**" "agent-transcripts/**" "mcps/**" "terminals/**"
+```
+
+## Steps
+
+1. Read `settings.json` for `JWT Issuer` and `JWT secret`.
+2. Run the `web-ext sign` command above with those values, using `--channel=listed`.
+3. Use `--ignore-files` to exclude everything that isn't part of the extension (see release-packaging rule for the canonical file list).
+4. Set `block_until_ms` to **120000** — the command typically takes ~100 seconds (validation + approval).
+5. On success, a signed `.xpi` appears in `web-ext-artifacts/`.
+
+## Notes
+
+- `web-ext` is globally installed (v9.2.0+).
+- The extension ID is in `manifest.json` under `browser_specific_settings.gecko.id`.
+- Always bump the version **before** uploading (see version-bump rule).
+- Never hardcode the credentials in rules or code — always read them fresh from `settings.json`.
