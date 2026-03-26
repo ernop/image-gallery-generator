@@ -8,91 +8,135 @@
   </head>
 
   <body id="galleryWGOptionsBody">
-    <h1>Options:</h1>
-    <p class="options-autosave-note">Changes save automatically.</p>
-    <h2>Labels</h2>
+    <header class="options-header">
+      <h1>4Chan Gallery Viewer WG</h1>
+      <p class="options-autosave-note">Changes save automatically</p>
+    </header>
+
     <form id="galleryOptions">
-      <table class="options-table">
-        <thead>
-          <tr><th></th><th>Option</th><th>Example</th></tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><input type="checkbox" id="imageCountShown"></td>
-            <td><label for="imageCountShown">Image count</label></td>
-            <td><code> 3 / 47</code></td>
-          </tr>
-          <tr>
-            <td><input type="checkbox" id="imageFilenameShown"></td>
-            <td><label for="imageFilenameShown">Filename</label></td>
-            <td><code>autumn_forest.jpg</code></td>
-          </tr>
-          <tr>
-            <td><input type="checkbox" id="imageResolutionShown"></td>
-            <td><label for="imageResolutionShown">Resolution</label></td>
-            <td><code>1920x1080</code></td>
-          </tr>
-          <tr>
-            <td><input type="checkbox" id="imageMegapixelsShown"></td>
-            <td><label for="imageMegapixelsShown">Megapixels</label></td>
-            <td><code>2.1m</code></td>
-          </tr>
-          <tr>
-            <td><input type="checkbox" id="preloadLabelShown"></td>
-            <td><label for="preloadLabelShown">Preload count</label></td>
-            <td><code>5</code></td>
-          </tr>
-          <tr>
-            <td><input type="checkbox" id="anyImagePreloadedLabelShown"></td>
-            <td><label for="anyImagePreloadedLabelShown">Preload indicator</label></td>
-            <td><code>.</code></td>
-          </tr>
-          <tr>
-            <td><input type="checkbox" id="postTimeShown"></td>
-            <td><label for="postTimeShown">Post time</label></td>
-            <td><code>3 hours ago</code></td>
-          </tr>
-          <tr>
-            <td><input type="checkbox" id="postTextShown"></td>
-            <td><label for="postTextShown">Post text</label></td>
-            <td><code>Can anyone ID this location?</code></td>
-          </tr>
-        </tbody>
-      </table>
+      <section class="options-section">
+        <h2>Overlay Labels</h2>
+        <div class="options-card">
+          <label class="option-row" for="imageCountShown">
+            <div class="option-info">
+              <span class="option-name">Image count</span>
+              <span class="option-example">3 / 47</span>
+            </div>
+            <input type="checkbox" id="imageCountShown" class="toggle-input">
+            <span class="toggle-switch"></span>
+          </label>
+          <label class="option-row" for="imageFilenameShown">
+            <div class="option-info">
+              <span class="option-name">Filename</span>
+              <span class="option-example">autumn_forest.jpg</span>
+            </div>
+            <input type="checkbox" id="imageFilenameShown" class="toggle-input">
+            <span class="toggle-switch"></span>
+          </label>
+          <label class="option-row" for="imageResolutionShown">
+            <div class="option-info">
+              <span class="option-name">Resolution</span>
+              <span class="option-example">1920x1080</span>
+            </div>
+            <input type="checkbox" id="imageResolutionShown" class="toggle-input">
+            <span class="toggle-switch"></span>
+          </label>
+          <label class="option-row" for="imageMegapixelsShown">
+            <div class="option-info">
+              <span class="option-name">Megapixels</span>
+              <span class="option-example">2.1m</span>
+            </div>
+            <input type="checkbox" id="imageMegapixelsShown" class="toggle-input">
+            <span class="toggle-switch"></span>
+          </label>
+          <label class="option-row" for="preloadLabelShown">
+            <div class="option-info">
+              <span class="option-name">Preload count</span>
+              <span class="option-example">5</span>
+            </div>
+            <input type="checkbox" id="preloadLabelShown" class="toggle-input">
+            <span class="toggle-switch"></span>
+          </label>
+          <label class="option-row" for="anyImagePreloadedLabelShown">
+            <div class="option-info">
+              <span class="option-name">Preload indicator</span>
+              <span class="option-example">.</span>
+            </div>
+            <input type="checkbox" id="anyImagePreloadedLabelShown" class="toggle-input">
+            <span class="toggle-switch"></span>
+          </label>
+          <label class="option-row" for="postTimeShown">
+            <div class="option-info">
+              <span class="option-name">Post time</span>
+              <span class="option-example">3 hours ago</span>
+            </div>
+            <input type="checkbox" id="postTimeShown" class="toggle-input">
+            <span class="toggle-switch"></span>
+          </label>
+          <label class="option-row" for="postTextShown">
+            <div class="option-info">
+              <span class="option-name">Post text</span>
+              <span class="option-example">Can anyone ID this location?</span>
+            </div>
+            <input type="checkbox" id="postTextShown" class="toggle-input">
+            <span class="toggle-switch"></span>
+          </label>
+        </div>
+      </section>
 
-      <h2>UI Elements</h2>
-      <table class="options-table">
-        <thead>
-          <tr><th></th><th>Option</th><th>Description</th></tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><input type="checkbox" id="helpButtonShown"></td>
-            <td><label for="helpButtonShown">Help buttons</label></td>
-            <td><code>⚙</code> and <code>?</code> buttons in gallery corners</td>
-          </tr>
-          <tr>
-            <td><input type="checkbox" id="progressBarShown"></td>
-            <td><label for="progressBarShown">Loading progress bar</label></td>
-            <td>Thin bar at bottom showing image download progress</td>
-          </tr>
-        </tbody>
-      </table>
+      <section class="options-section">
+        <h2>UI Elements</h2>
+        <div class="options-card">
+          <label class="option-row" for="helpButtonShown">
+            <div class="option-info">
+              <span class="option-name">Help buttons</span>
+              <span class="option-desc">⚙ and ? buttons in gallery corners</span>
+            </div>
+            <input type="checkbox" id="helpButtonShown" class="toggle-input">
+            <span class="toggle-switch"></span>
+          </label>
+          <label class="option-row" for="progressBarShown">
+            <div class="option-info">
+              <span class="option-name">Loading progress bar</span>
+              <span class="option-desc">Thin bar at bottom edge during image load</span>
+            </div>
+            <input type="checkbox" id="progressBarShown" class="toggle-input">
+            <span class="toggle-switch"></span>
+          </label>
+        </div>
+      </section>
 
-      <h2>Navigation</h2>
-      <label><input type="checkbox" id="loopNavigation">Loop navigation (wrap around at first/last image)</label>
+      <section class="options-section">
+        <h2>Navigation</h2>
+        <div class="options-card">
+          <label class="option-row" for="loopNavigation">
+            <div class="option-info">
+              <span class="option-name">Loop navigation</span>
+              <span class="option-desc">Wrap around at first/last image</span>
+            </div>
+            <input type="checkbox" id="loopNavigation" class="toggle-input">
+            <span class="toggle-switch"></span>
+          </label>
+        </div>
+      </section>
 
-      <h2>Custom Sites</h2>
-      <p><code>example.com</code> → matches example.com and all subdomains</p>
-      <ol id="customSitesSteps">
-        <li>Enter domain(s), one per line</li>
-        <li>Click "Grant Permission" — browser will prompt</li>
-        <li>Domains and other options are saved automatically</li>
-      </ol>
-      <textarea id="customSitePatterns" rows="4" cols="50"></textarea>
-      <br /><button type="button" id="enableCustomSites">Grant Permission</button>
-      <span id="customSitesStatus"></span>
-       <p />These options are saved locally in this browser, so they don't persist across computers.
+      <section class="options-section">
+        <h2>Custom Sites</h2>
+        <div class="options-card options-card-custom-sites">
+          <p class="custom-sites-hint"><code>example.com</code> &rarr; matches example.com and all subdomains</p>
+          <ol id="customSitesSteps">
+            <li>Enter domain(s), one per line</li>
+            <li>Click "Grant Permission" &mdash; browser will prompt</li>
+            <li>Domains and other options are saved automatically</li>
+          </ol>
+          <textarea id="customSitePatterns" rows="3" placeholder="example.com"></textarea>
+          <div class="custom-sites-actions">
+            <button type="button" id="enableCustomSites">Grant Permission</button>
+            <span id="customSitesStatus"></span>
+          </div>
+        </div>
+        <p class="options-footnote">Settings are stored locally in this browser and don't sync across devices.</p>
+      </section>
 
       <div id="output"></div>
     </form>

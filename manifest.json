@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "4Chan Gallery Viewer WG",
   "short_name": "GalleryView",
-  "version": "0.0.39",
+  "version": "0.0.43",
   "description": "Adds gallery button to 4chan thread views with keyboard shortcuts for fast image browsing and saving.",
   "permissions": [
     "storage",

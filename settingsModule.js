@@ -248,17 +248,6 @@ let settingsModule = {
       });
     });
 
-    document.querySelectorAll('.options-table tbody tr').forEach((row) => {
-      row.addEventListener('click', (e) => {
-        if (e.target.tagName === 'INPUT') return;
-        const checkbox = row.querySelector('input[type="checkbox"]');
-        if (checkbox) {
-          checkbox.checked = !checkbox.checked;
-          checkbox.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-      });
-    });
-
     const patternsTextarea = document.querySelector("#customSitePatterns");
     if (patternsTextarea) {
       patternsTextarea.addEventListener('input', () => {
