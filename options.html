@@ -9,7 +9,7 @@
 
   <body id="galleryWGOptionsBody">
     <h1>Options:</h1>
-    <div id="saveNoticeTop" class="save-notice-top">You have unsaved changes. Save if you want.</div>
+    <div id="saveNoticeTop" data-changed="false">You have unsaved changes. Save if you want.</div>
     <h2>Labels</h2>
     <form id="galleryOptions">
       <table class="options-table">
@@ -92,9 +92,9 @@
       <textarea id="customSitePatterns" rows="4" cols="50"></textarea>
       <br /><button type="button" id="enableCustomSites">Grant Permission</button>
       <span id="customSitesStatus"></span>
-       <p />These options are saved locally in this browser, so they don't persist across computers.
+      <p>These options are saved locally in this browser, so they don't persist across computers.</p>
 
-      <p /><button type="submit">Save</button><div id="saveNotice">You have unsaved changes. Save if you want.</div>
+      <p></p><button type="submit">Save</button><div id="saveNotice" data-changed="false">You have unsaved changes. Save if you want.</div>
       <br /><div id="output"></div>
     </form>
     <script src="util.js"></script>
