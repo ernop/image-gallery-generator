@@ -12,7 +12,6 @@ const SUCCESS = {
 let settingsModule = {
   lastSavedSettings: null,
   settings:{}, //these are the ones who should be consulted all the time and modified.
-  changed:false,
   onSettingPage:true, //just a tracker if we are being called via this other in-browser configuration method.
   loadSettings:async function() { //this populates settings, called at startup.
     try{
@@ -33,28 +32,65 @@ let settingsModule = {
     }
   },
 
-  saveSettings: function(onSettingsConfigPage) {
-    settingsModule.onSettingsConfigPage=onSettingsConfigPage;
+  saveSettings: function(onSettingsConfigPage, opts) {
+    opts = opts || {};
+    const silent = opts.silent === true;
+    settingsModule.onSettingsConfigPage = onSettingsConfigPage;
 
-    let toSaveSettings
-    if (onSettingsConfigPage){
-      toSaveSettings = settingsModule.pullSettingsFromHtml();
-    }else{
-      toSaveSettings = settingsModule.settings;
-    }
+    const toSaveSettings = onSettingsConfigPage
+      ? Object.assign({}, settingsModule.settings, settingsModule.pullSettingsFromHtml())
+      : settingsModule.settings;
 
-    browser.storage.sync.set({ settings: toSaveSettings }).then(() => {
-        if (onSettingsConfigPage) {
+    const registerSites = onSettingsConfigPage && (
+      opts.forceRegisterSites === true ||
+      settingsModule.sitePatternsChanged(
+        toSaveSettings.customSitePatterns,
+        settingsModule.lastSavedSettings && settingsModule.lastSavedSettings.customSitePatterns
+      )
+    );
+
+    return browser.storage.sync.set({ settings: toSaveSettings }).then(() => {
+        if (onSettingsConfigPage && !silent) {
           settingsModule.optionsHtmlPageInfo(SUCCESS.SETTINGS_SAVED);
         }
-        settingsModule.lastSavedSettings=toSaveSettings;
+        settingsModule.settings = toSaveSettings;
+        settingsModule.lastSavedSettings = toSaveSettings;
         console.log('Settings saved successfully');
+        if (registerSites) {
+          return settingsModule.registerCustomSitesAfterSave();
+        }
     }).catch((error) => {
         if (onSettingsConfigPage) {
           settingsModule.optionsHtmlPageInfo(`${ERRORS.SETTINGS_SAVE_FAILED}: ${error.message}`);
+          throw error;
         }
         console.error(ERRORS.SETTINGS_SAVE_FAILED, error);
-    })
+    });
+  },
+
+  sitePatternsChanged: function(nextPatterns, prevPatterns) {
+    const next = nextPatterns || [];
+    const prev = prevPatterns || [];
+    if (next.length !== prev.length) return true;
+    return next.some((p, i) => prev[i] !== p);
+  },
+
+  persistOptionsPageSettings: function(opts) {
+    opts = opts || {};
+    return settingsModule.saveSettings(true, {
+      silent: true,
+      forceRegisterSites: opts.forceRegisterSites === true
+    });
+  },
+
+  scheduleOptionsPageAutosave: function() {
+    if (settingsModule._optionsAutosaveTimer != null) {
+      clearTimeout(settingsModule._optionsAutosaveTimer);
+    }
+    settingsModule._optionsAutosaveTimer = setTimeout(() => {
+      settingsModule._optionsAutosaveTimer = null;
+      settingsModule.persistOptionsPageSettings();
+    }, 400);
   },
 
   //a function to update the output area of the options.html page during config.
@@ -68,19 +104,6 @@ let settingsModule = {
         }
       }
     }
-  },
-
-  //for slightly better checking on if we actually need to save settings.
-  //also it's important to pull keys from candidate, since if the user is a returning, upgraded user with an old settings type object stored,
-  //then they may have a sparse settings object, so we want to compare them against the NEW one.
-  //hold on why don't i just adjust the name we save options into? well, first of all that would nuke any users settings every time we upgraded which would be very bad.
-  settingsAreDifferentThanLastSaved: function(candidateSettings) {
-    for (const key in candidateSettings) {
-      if (candidateSettings[key] !== settingsModule.lastSavedSettings[key]) {
-        return true;
-      }
-    }
-    return false;
   },
 
   //when you load settings, run it through this, that way if the setting you got from storage is missing a key and its value, it'll be filled in from default.
@@ -204,20 +227,6 @@ let settingsModule = {
     }
   },
 
-  setSettingsAsHavingUnsavedChanges: function(val){
-    settingsModule.changed = val;
-    var ss = '';
-    if (val==true){
-      ss="true";
-    }else {
-      ss="false";
-    }
-    document.querySelector("button[type='submit']").dataset.changed = ss;
-    document.querySelector("#saveNotice").dataset.changed = ss;
-    const topNotice = document.querySelector("#saveNoticeTop");
-    if (topNotice) topNotice.dataset.changed = ss;
-  },
-
   setupOptionsHtmlPage:async function(){
     await settingsModule.loadSettings();
     console.log("setting up options page, loaded settings (internal):");
@@ -233,26 +242,20 @@ let settingsModule = {
       settingsModule.lastSavedSettings = settingsModule.pullSettingsFromHtml();
     }
 
-    // Now attach change listeners after initial values are set
     document.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
       checkbox.addEventListener('change', () => {
-        const candidateSettings = settingsModule.pullSettingsFromHtml();
-        settingsModule.setSettingsAsHavingUnsavedChanges(settingsModule.settingsAreDifferentThanLastSaved(candidateSettings));
+        settingsModule.persistOptionsPageSettings();
       });
     });
 
-    // Track changes in textarea too
     const patternsTextarea = document.querySelector("#customSitePatterns");
     if (patternsTextarea) {
       patternsTextarea.addEventListener('input', () => {
-        const candidateSettings = settingsModule.pullSettingsFromHtml();
-        settingsModule.setSettingsAsHavingUnsavedChanges(settingsModule.settingsAreDifferentThanLastSaved(candidateSettings));
-        
-        // Update steps: if textarea has content, highlight step 2 (grant permission)
+        settingsModule.scheduleOptionsPageAutosave();
+
         const hasContent = patternsTextarea.value.trim().length > 0;
         settingsModule.updateCustomSitesSteps(hasContent ? 1 : 0);
-        
-        // Clear status when editing
+
         const statusEl = document.querySelector("#customSitesStatus");
         if (statusEl) statusEl.textContent = "";
       });
@@ -264,27 +267,16 @@ let settingsModule = {
       enableBtn.addEventListener('click', settingsModule.handleEnableCustomSites);
     }
 
-    document.querySelector("form").addEventListener("submit", function(e){
-      e.preventDefault();
-      try{
-          settingsModule.saveSettings(true);
-          document.querySelector("button[type='submit']").dataset.changed = 'false';
-          document.querySelector("#saveNotice").dataset.changed = 'false';
-          const topNotice = document.querySelector("#saveNoticeTop");
-          if (topNotice) topNotice.dataset.changed = 'false';
-          changed=false;
-          
-          // Also register the custom site scripts after saving
-          settingsModule.registerCustomSitesAfterSave();
-          
-          // Mark all steps done if custom sites were configured
-          const patterns = settingsModule.getCustomSitePatternsFromHtml();
-          if (patterns.length > 0) {
-            settingsModule.updateCustomSitesSteps(3);
-          }
-      } catch (error) {
-          settingsModule.optionsHtmlPageInfo(`${ERRORS.SETTINGS_SAVE_FAILED}: ${error.message}`);
-          console.error('Error saving settings:', error);
+    const optionsForm = document.querySelector("#galleryOptions");
+    if (optionsForm) {
+      optionsForm.addEventListener("submit", (e) => e.preventDefault());
+    }
+
+    window.addEventListener("pagehide", () => {
+      if (settingsModule._optionsAutosaveTimer != null) {
+        clearTimeout(settingsModule._optionsAutosaveTimer);
+        settingsModule._optionsAutosaveTimer = null;
+        settingsModule.persistOptionsPageSettings();
       }
     });
 
@@ -308,9 +300,16 @@ let settingsModule = {
       const granted = await browser.permissions.request({ origins: patterns });
 
       if (granted) {
-        statusEl.textContent = " ✓ Granted — now Save (Firefox permissions tab needs manual refresh to show)";
         settingsModule.updateCustomSitesSteps(2);
-        settingsModule.setSettingsAsHavingUnsavedChanges(true);
+        try {
+          await settingsModule.persistOptionsPageSettings({ forceRegisterSites: true });
+          const patterns = settingsModule.getCustomSitePatternsFromHtml();
+          if (patterns.length > 0) {
+            settingsModule.updateCustomSitesSteps(3);
+          }
+        } catch (saveErr) {
+          statusEl.textContent = ` ✗ Saved permission but settings failed: ${saveErr.message}`;
+        }
       } else {
         statusEl.textContent = " ✗ Permission denied";
         settingsModule.updateCustomSitesSteps(1);

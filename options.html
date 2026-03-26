@@ -9,7 +9,7 @@
 
   <body id="galleryWGOptionsBody">
     <h1>Options:</h1>
-    <div id="saveNoticeTop" class="save-notice-top">You have unsaved changes. Save if you want.</div>
+    <p class="options-autosave-note">Changes save automatically.</p>
     <h2>Labels</h2>
     <form id="galleryOptions">
       <table class="options-table">
@@ -87,15 +87,14 @@
       <ol id="customSitesSteps">
         <li>Enter domain(s), one per line</li>
         <li>Click "Grant Permission" — browser will prompt</li>
-        <li>Click "Save" above</li>
+        <li>Domains and other options are saved automatically</li>
       </ol>
       <textarea id="customSitePatterns" rows="4" cols="50"></textarea>
       <br /><button type="button" id="enableCustomSites">Grant Permission</button>
       <span id="customSitesStatus"></span>
        <p />These options are saved locally in this browser, so they don't persist across computers.
 
-      <p /><button type="submit">Save</button><div id="saveNotice">You have unsaved changes. Save if you want.</div>
-      <br /><div id="output"></div>
+      <div id="output"></div>
     </form>
     <script src="util.js"></script>
     <script src="settingsModule.js"></script>

@@ -33,7 +33,7 @@ const labels = [
     id: "imageResolution",
     condition: (settings, globalState) => settings.imageResolutionShown,
     content: (globalState) => {
-      const img = $("#targetImg")[0];
+      const img = $("#blackBackground img.gallery-main-img:visible")[0] || $("#targetImg")[0];
       return `${img.naturalWidth}x${img.naturalHeight}`;
     },
     shortcut: "r",
@@ -46,7 +46,7 @@ const labels = [
     id: "imageMegapixels",
     condition: (settings, globalState) => settings.imageMegapixelsShown,
     content: (globalState) => {
-      const img = $("#targetImg")[0];
+      const img = $("#blackBackground img.gallery-main-img:visible")[0] || $("#targetImg")[0];
       return `${(img.naturalWidth * img.naturalHeight / 1000 / 1000).toFixed(1)}m`;
     },
     shortcut: "m",

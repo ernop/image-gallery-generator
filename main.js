@@ -44,6 +44,131 @@
     }
   }
 
+  let gallerySettingsRefreshTimer = null;
+
+  async function refreshGallerySettingsFromStorage() {
+    try {
+      await settingsModule.loadSettings();
+      if (globalState.galleryOn) {
+        redraw();
+      }
+    } catch (err) {
+      console.warn('4chan Gallery WG: could not refresh settings', err);
+    }
+  }
+
+  function scheduleGallerySettingsRefresh() {
+    if (gallerySettingsRefreshTimer != null) {
+      clearTimeout(gallerySettingsRefreshTimer);
+    }
+    gallerySettingsRefreshTimer = setTimeout(() => {
+      gallerySettingsRefreshTimer = null;
+      refreshGallerySettingsFromStorage();
+    }, 120);
+  }
+
+  /** True when play() was blocked so we show "Enable sound" until the user gestures. */
+  let videoNeedsSoundGesture = false;
+
+  function clearGalleryVideoSoundUi() {
+    videoNeedsSoundGesture = false;
+    $("#targetVideo").off("volumechange.gallerySound");
+    const btn = document.getElementById("galleryVideoSoundBtn");
+    if (btn) {
+      btn.hidden = true;
+      btn.setAttribute("hidden", "");
+    }
+  }
+
+  function syncGalleryVideoSoundButton(videoEl) {
+    const btn = document.getElementById("galleryVideoSoundBtn");
+    if (!btn || !globalState.galleryOn || !videoEl) return;
+    const show = videoEl.muted || videoNeedsSoundGesture;
+    btn.hidden = !show;
+    if (show) {
+      btn.removeAttribute("hidden");
+    } else {
+      btn.setAttribute("hidden", "");
+    }
+  }
+
+  /** Browsers often block unmuted play() when it runs after async canplay (e.g. arrow-key nav). */
+  function tryPlayGalleryVideoWithAudio(videoEl) {
+    videoEl.defaultMuted = false;
+    videoEl.muted = false;
+    const playPromise = videoEl.play();
+    if (playPromise === undefined) {
+      syncGalleryVideoSoundButton(videoEl);
+      return;
+    }
+    playPromise
+      .then(() => {
+        videoNeedsSoundGesture = false;
+        requestAnimationFrame(() => syncGalleryVideoSoundButton(videoEl));
+      })
+      .catch(() => {
+        videoNeedsSoundGesture = true;
+        syncGalleryVideoSoundButton(videoEl);
+      });
+  }
+
+  function bindGalleryVideoSoundButton() {
+    $("#galleryVideoSoundBtn")
+      .off("click.gallerySound")
+      .on("click.gallerySound", function (e) {
+        e.stopPropagation();
+        const v = document.getElementById("targetVideo");
+        if (!v || !globalState.galleryOn) return;
+        v.defaultMuted = false;
+        v.muted = false;
+        if (v.volume === 0) {
+          v.volume = 1;
+        }
+        videoNeedsSoundGesture = false;
+        v.play().catch(() => {});
+        requestAnimationFrame(() => syncGalleryVideoSoundButton(v));
+      });
+  }
+
+  function galleryVideoUrlEqualsPageUrl(mediaEl, pageUrl) {
+    if (!mediaEl || !pageUrl || !mediaEl.currentSrc) return false;
+    try {
+      return new URL(pageUrl, window.location.href).href === mediaEl.currentSrc;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function clickEventPathIncludesGalleryVideo(e) {
+    const v = document.getElementById("targetVideo");
+    if (!v) return false;
+    const ev = e.originalEvent != null ? e.originalEvent : e;
+    if (typeof ev.composedPath !== "function") return false;
+    return ev.composedPath().includes(v);
+  }
+
+  function bindGalleryInteractionHandlers() {
+    const wrap = $("#galleryViewWrapper");
+    wrap.off("click.galleryBackdrop");
+    wrap.on("click.galleryBackdrop", "#blackBackground", (e) => {
+      if ($(e.target).closest("#galleryVideoSoundBtn").length) return;
+
+      const onVideo = clickEventPathIncludesGalleryVideo(e);
+
+      if (globalState.displayOptionsShown || globalState.keyboardShortcutsShown) {
+        updateGalleryState({
+          displayOptionsShown: false,
+          keyboardShortcutsShown: false
+        });
+        redraw();
+        return;
+      }
+
+      if (onVideo) return;
+      backToNormal();
+    });
+  }
+
   // Displays error in #output div for 5 seconds, then clears automatically
   function showError(message, error = null) {
     console.error(message, error);
@@ -73,45 +198,21 @@
 
       $(".galleryOn").click(enableGalleryMode);
 
-      $("#targetImg").click((e) => {
-        if (globalState.displayOptionsShown || globalState.keyboardShortcutsShown) {
-          updateGalleryState({
-            displayOptionsShown: false,
-            keyboardShortcutsShown: false
-          });
-          redraw();
-          e.stopPropagation();
-        } else {
-          e.stopPropagation();
-        }
-      });
-
-      $("#targetVideo").click((e) => {
-        if (globalState.displayOptionsShown || globalState.keyboardShortcutsShown) {
-          updateGalleryState({
-            displayOptionsShown: false,
-            keyboardShortcutsShown: false
-          });
-          redraw();
-          e.stopPropagation();
-        } else {
-          e.stopPropagation();
-        }
-      });
-
-      $("#blackBackground").click(function (e) {
-        if (globalState.displayOptionsShown || globalState.keyboardShortcutsShown) {
-          updateGalleryState({
-            displayOptionsShown: false,
-            keyboardShortcutsShown: false
-          });
-          redraw();
-        } else {
-          backToNormal();
-        }
-      });
-
       $(window).on('resize', redraw);
+
+      browser.storage.onChanged.addListener((changes, areaName) => {
+        if (areaName !== 'sync' || !changes.settings) return;
+        scheduleGallerySettingsRefresh();
+      });
+
+      window.addEventListener('focus', () => {
+        if (globalState.galleryOn) scheduleGallerySettingsRefresh();
+      });
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && globalState.galleryOn) {
+          scheduleGallerySettingsRefresh();
+        }
+      });
     } catch (error) {
       showError(ERRORS.SETTINGS_LOAD_FAILED, error);
     }
@@ -194,8 +295,10 @@
         <div id="galleryViewWrapper">
           <div id="labelZone"></div>
           <div id="blackBackground">
-            <img id="targetImg" src="" />
-            <video controls="true" autoplay id="targetVideo" src=""></video>
+            <img id="targetImg" class="gallery-main-img" src="" alt="" />
+            <img id="targetImgB" class="gallery-main-img" src="" alt="" />
+            <video controls="true" id="targetVideo" src=""></video>
+            <button type="button" id="galleryVideoSoundBtn" class="gallery-video-sound-btn" hidden aria-label="Enable video sound">Enable sound</button>
             <div id="output"></div>
           </div>
           <div id="loadingProgressBar"></div>
@@ -203,9 +306,22 @@
       `);
     } else {
       $("#galleryViewWrapper, #blackBackground").show();
+      if ($("#targetImgB").length === 0) {
+        $("#targetImg").addClass("gallery-main-img").after(
+          '<img id="targetImgB" class="gallery-main-img" src="" alt="" />'
+        );
+      }
+      if ($("#galleryVideoSoundBtn").length === 0) {
+        $("#targetVideo").after(
+          '<button type="button" id="galleryVideoSoundBtn" class="gallery-video-sound-btn" hidden aria-label="Enable video sound">Enable sound</button>'
+        );
+      }
     }
 
     styleBlackBackground();
+    bindMainGalleryImageClick();
+    bindGalleryVideoSoundButton();
+    bindGalleryInteractionHandlers();
     readStuffFromPage();
     redraw();
     setKeyboardShortcuts();
@@ -252,18 +368,42 @@
     bar.style.width = '0%';
   }
 
-  function showImageCleanly($img, src) {
-    const el = $img[0];
-    $img.hide();
+  function bindMainGalleryImageClick() {
+    $("#targetImg, #targetImgB").off("click").on("click", (e) => {
+      if (globalState.displayOptionsShown || globalState.keyboardShortcutsShown) {
+        updateGalleryState({
+          displayOptionsShown: false,
+          keyboardShortcutsShown: false
+        });
+        redraw();
+        e.stopPropagation();
+      } else {
+        e.stopPropagation();
+      }
+    });
+  }
+
+  /** Load `src` in the hidden buffer, then swap so the previous image stays visible until the next is ready. */
+  function showMainGalleryImage(src) {
+    const drawAtStart = globalState.redrawCount;
+    const imgs = [$("#targetImg"), $("#targetImgB")];
+    const visibleIdx = imgs[0].is(":visible") ? 0 : imgs[1].is(":visible") ? 1 : -1;
+    const $toShow = visibleIdx < 0 ? imgs[0] : imgs[1 - visibleIdx];
+    const $toHide = visibleIdx < 0 ? imgs[1] : imgs[visibleIdx];
+    const el = $toShow[0];
+
+    const finish = () => {
+      if (!globalState.galleryOn || drawAtStart !== globalState.redrawCount) return;
+      $toShow.show();
+      $toHide.hide();
+    };
+
     el.src = src;
     if (el.decode) {
-      el.decode().then(() => {
-        if (globalState.galleryOn) $img.show();
-      }).catch(() => {
-        if (globalState.galleryOn) $img.show();
-      });
+      el.decode().then(finish).catch(finish);
     } else {
-      $img.show();
+      $toShow.off("load.gallerySwap").one("load.gallerySwap", finish);
+      if (el.complete && el.naturalWidth > 0) finish();
     }
   }
 
@@ -360,10 +500,13 @@
       console.warn('Could not pause video:', error);
     }
 
+    clearGalleryVideoSoundUi();
+
     $(document).off('keydown');
     $(window).off('resize');
+    $("#galleryViewWrapper").off("click.galleryBackdrop");
     $("#blackBackground").off('click');
-    $("#targetImg").off('click');
+    $("#targetImg, #targetImgB").off("click");
     $("#targetVideo").off('click');
     document.removeEventListener('wheel', handleMouseWheel);
     document.removeEventListener('mouseup', handleMouseButtons);
@@ -456,25 +599,41 @@
     });
 
     const thisImageType = globalState.imageTypes[globalState.displayedImageIndex];
-    const targetImg = $("#targetImg");
     const targetVideo = $("#targetVideo");
     const currentUrl = globalState.imageUrls[globalState.displayedImageIndex];
 
     try {
       if (thisImageType === "video") {
-        targetImg.hide();
+        $("#targetImg, #targetImgB").hide();
 
-        targetVideo.hide();
         const videoEl = targetVideo[0];
-        videoEl.src = currentUrl;
-        videoEl.load();
-        targetVideo.off('canplay.display').one('canplay.display', () => {
-          if (globalState.imageUrls[globalState.displayedImageIndex] === currentUrl && globalState.galleryOn) {
-            targetVideo.show();
-            videoEl.play().catch(() => {});
-          }
-        });
+        const canReusePlaying =
+          targetVideo.is(":visible") &&
+          videoEl.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+          galleryVideoUrlEqualsPageUrl(videoEl, currentUrl);
+
+        if (canReusePlaying) {
+          // Avoid video.load() here: it resets mute and breaks Firefox's native control bar.
+        } else {
+          clearGalleryVideoSoundUi();
+          targetVideo.hide();
+          videoEl.src = currentUrl;
+          videoEl.load();
+          targetVideo.off("volumechange.gallerySound").on("volumechange.gallerySound", function () {
+            if (!this.muted) {
+              videoNeedsSoundGesture = false;
+            }
+            syncGalleryVideoSoundButton(this);
+          });
+          targetVideo.off('canplay.display').one('canplay.display', () => {
+            if (globalState.imageUrls[globalState.displayedImageIndex] === currentUrl && globalState.galleryOn) {
+              targetVideo.show();
+              tryPlayGalleryVideoWithAudio(videoEl);
+            }
+          });
+        }
       } else {
+        clearGalleryVideoSoundUi();
         targetVideo.hide();
 
         let imageReady = false;
@@ -493,32 +652,26 @@
         if (imageReady) {
           resetProgress();
           const src = blobUrlCache[currentUrl] || currentUrl;
-          showImageCleanly(targetImg, src);
+          showMainGalleryImage(src);
         } else {
           const probe = new Image();
           probe.src = currentUrl;
           if (probe.complete && probe.naturalWidth > 0) {
             resetProgress();
-            showImageCleanly(targetImg, currentUrl);
+            showMainGalleryImage(currentUrl);
           } else {
-            targetImg.hide();
             const drawCount = globalState.redrawCount;
 
             fetchImageWithProgress(currentUrl).then(blobUrl => {
               if (drawCount !== globalState.redrawCount || !globalState.galleryOn) return;
               if (blobUrl) {
                 hideProgress();
-                showImageCleanly(targetImg, blobUrl);
+                showMainGalleryImage(blobUrl);
               }
             }).catch(() => {
               if (drawCount !== globalState.redrawCount || !globalState.galleryOn) return;
               resetProgress();
-              targetImg.attr("src", currentUrl).hide();
-              targetImg.off('load.display').one('load.display', () => {
-                if (globalState.imageUrls[globalState.displayedImageIndex] === currentUrl && globalState.galleryOn) {
-                  targetImg.show();
-                }
-              });
+              showMainGalleryImage(currentUrl);
             });
           }
         }
