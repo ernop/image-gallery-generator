@@ -4,3 +4,7 @@ web-ext-artifacts/
 .amo-upload-uuid
 settings.json
 curls.txt
+
+# AMO API credentials - never commit
+amo-credentials.local
+*.local
