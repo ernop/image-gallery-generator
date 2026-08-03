@@ -1,6 +1,16 @@
-# 4Chan Gallery Viewer WG - Agent Guidelines
+# 4Chan Gallery Viewer WG - Agent Entry Point
 
-This is a Firefox browser extension that adds gallery mode to 4chan threads. Start here to understand the project.
+Start here. This is a Firefox browser extension that adds gallery mode to 4chan threads.
+
+## Also Read
+
+- [.cursorrules](.cursorrules) — comments policy, code style, keyboard shortcut rules, testing approach
+
+## Related Projects
+
+- **meh-tabs** (`/proj/meh-tabs/`) — another Firefox extension (new tab page)
+- **CoilViewer** (`/proj/coilui/`) — desktop image browser (different platform, similar domain)
+- **myBrowser** (`/proj/myBrowser/`) — meta-project with more browser customizations in `browser/`
 
 ## What This Extension Does
 
