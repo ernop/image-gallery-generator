@@ -363,6 +363,14 @@ const labels = [
     help: "Toggle distraction-free mode (hide UI)."
   },
   {
+    id: "toggleFullscreen",
+    condition: (settings, globalState) => true,
+    action: () => window.toggleGalleryFullscreen(),
+    shortcut: "f",
+    content: () => "",
+    help: "Toggle fullscreen."
+  },
+  {
     id: "openOptions",
     condition: (settings, globalState) => true,
     action: (settings, globalState) => window.openOptionsPage(),

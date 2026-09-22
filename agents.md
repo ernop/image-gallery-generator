@@ -79,7 +79,8 @@ Adding a new shortcut = adding an object to this array. No other wiring needed.
 ### Prerequisites (one-time)
 
 1. Mozilla account with developer access
-2. Logged in at: https://addons.mozilla.org/developers/
+2. `amo-credentials.local` — same JWT as hostname **PC** (`~/proj/mybrowser/amo-credentials.local`). Copy that file; do not generate a new AMO API key if this box's copy fails. Policy: `mybrowser/docs/amo-credentials.md`.
+3. Or upload via the developer hub while logged in: https://addons.mozilla.org/developers/addon/4chan-gallery-mode-wg/versions
 
 ### Steps to Release
 
@@ -158,6 +159,7 @@ $v = (Get-Content manifest.json | ConvertFrom-Json).version; $files = @("manifes
 | PageUp / PageDown | Jump 5 images |
 | Ctrl+Arrow | Jump halfway |
 | s | Fast save |
+| f | Toggle fullscreen |
 | d | Distraction-free mode |
 | c, n, r, m, p | Toggle labels |
 | ? | Help |

@@ -1,30 +1,31 @@
 ---
-description: How to upload the Firefox extension to AMO using web-ext and local API credentials
+description: How to upload the Firefox extension to AMO, and where the JWT file comes from
 alwaysApply: true
 ---
 
 # Firefox AMO Upload
 
-Upload the extension to Mozilla Add-ons using `web-ext sign` and the JWT credentials in `settings.json` (project root).
+Sign with `./release.sh`, which reads `./amo-credentials.local` (on PC this is a symlink to `~/proj/mybrowser/amo-credentials.local`).
+
+Full credential policy: `mybrowser/docs/amo-credentials.md`.
 
 ## Command
 
-```powershell
-cd d:\proj\4changal
-web-ext sign --api-key="<JWT Issuer from settings.json>" --api-secret="<JWT secret from settings.json>" --channel=listed --ignore-files "chrome/**" "*.zip" "settings.json" ".cursor/**" ".cursorrules" "curls.txt" "agents.md" "LICENSE" ".gitignore" ".amo-upload-uuid" "web-ext-artifacts/**" "agent-transcripts/**" "mcps/**" "terminals/**"
+```bash
+./release.sh            # zip + listed submit
+./release.sh --zip-only # zip only
+./release.sh --lint     # web-ext lint
 ```
 
-## Steps
+`release.sh` already excludes `chrome/` and gitignored creds. Set `block_until_ms` to **120000**.
 
-1. Read `settings.json` for `JWT Issuer` and `JWT secret`.
-2. Run the `web-ext sign` command above with those values, using `--channel=listed`.
-3. Use `--ignore-files` to exclude everything that isn't part of the extension (see release-packaging rule for the canonical file list).
-4. Set `block_until_ms` to **120000** — the command typically takes ~100 seconds (validation + approval).
-5. On success, a signed `.xpi` appears in `web-ext-artifacts/`.
+## If AMO rejects the JWT
+
+Copy `amo-credentials.local` from hostname **PC** (`~/proj/mybrowser/amo-credentials.local`). Do **not** generate a new API key. A new key on this machine invalidates the copy on the other developer computers.
 
 ## Notes
 
-- `web-ext` is globally installed (v9.2.0+).
-- The extension ID is in `manifest.json` under `browser_specific_settings.gecko.id`.
-- Always bump the version **before** uploading (see version-bump rule).
-- Never hardcode the credentials in rules or code — always read them fresh from `settings.json`.
+- Extension id is `browser_specific_settings.gecko.id` in `manifest.json`.
+- Bump the version **before** uploading (see version-bump rule).
+- Never hardcode the JWT in rules or code.
+- Listed channel. Release notes via `--amo-metadata` or the developer hub describe-version page.

@@ -8,6 +8,8 @@
     SETTINGS_LOAD_FAILED: 'Failed to load settings. Using defaults.',
     DOWNLOAD_FAILED: 'Failed to download image. Please try again or right-click to save manually.',
     IMAGE_LOAD_FAILED: 'Failed to load image.',
+    FULLSCREEN_UNSUPPORTED: 'Fullscreen is not supported in this browser.',
+    FULLSCREEN_FAILED: 'Fullscreen request failed.',
   };
 
   const SUCCESS = {
@@ -501,6 +503,10 @@
 
     $("#galleryViewWrapper, #blackBackground").hide();
     $("body").removeClass("gallery-mode");
+
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    }
 
     $(".help-menu-button").remove();
     $(".help-menu-wrapper").remove();
@@ -1209,7 +1215,7 @@
     }
 
     const maintainDistractionFreeModeKeys = [
-      'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 's', 'PageUp', 'PageDown',
+      'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 's', 'f', 'PageUp', 'PageDown',
       'Ctrl+ArrowLeft', 'Ctrl+ArrowRight', 'Ctrl+ArrowUp', 'Ctrl+ArrowDown',
       'Ctrl+PageUp', 'Ctrl+PageDown'
     ];
@@ -1289,6 +1295,21 @@
       console.error('Failed to open options page:', error);
       showError('Failed to open options page');
     }
+  };
+
+  window.toggleGalleryFullscreen = function () {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+      return;
+    }
+    const root = document.documentElement;
+    if (!root.requestFullscreen) {
+      showError(ERRORS.FULLSCREEN_UNSUPPORTED);
+      return;
+    }
+    root.requestFullscreen().catch((err) => {
+      showError(`${ERRORS.FULLSCREEN_FAILED} ${err.message}`, err);
+    });
   };
 
   window.toggleDistractionFreeUI = function (hide) {

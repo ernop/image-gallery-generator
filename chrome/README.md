@@ -1,3 +1,6 @@
+v0.0.44 changes:
+1. Press F in gallery to toggle browser fullscreen; press F again to leave fullscreen.
+
 v0.0.26 changes:
 1. Mouse side button navigation (back/forward buttons)
 2. Loop navigation option (wrap around at first/last image)

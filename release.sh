@@ -6,9 +6,9 @@
 #   ./release.sh --zip-only build the zip only (no AMO creds needed)
 #   ./release.sh --lint     run web-ext lint and exit
 #
-# Credentials: reads ./amo-credentials.local (gitignored) with lines:
-#   AMO_JWT_ISSUER=user:...
-#   AMO_JWT_SECRET=<64 hex chars>
+# Credentials: reads ./amo-credentials.local (gitignored; on PC a symlink to
+# ~/proj/mybrowser/amo-credentials.local). Same JWT on every developer machine.
+# If AMO rejects the JWT, copy that file from PC — do not generate a new key.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -34,8 +34,8 @@ build_zip() {
 load_creds() {
   [ -f amo-credentials.local ] || { echo "ERROR: amo-credentials.local not found"; exit 1; }
   # cut value after first '=', strip CR/LF defensively (handles Windows-pasted keys)
-  ISS="$(grep '^AMO_JWT_ISSUER=' amo-credentials.local | head -1 | cut -d= -f2- | tr -d '\r\n')"
-  SEC="$(grep '^AMO_JWT_SECRET=' amo-credentials.local | head -1 | cut -d= -f2- | tr -d '\r\n')"
+  ISS="$(grep '^AMO_JWT_ISSUER=' amo-credentials.local | head -1 | cut -d= -f2- | tr -d '\r\n' | sed 's/[[:space:]]*$//')"
+  SEC="$(grep '^AMO_JWT_SECRET=' amo-credentials.local | head -1 | cut -d= -f2- | tr -d '\r\n' | sed 's/[[:space:]]*$//')"
   [ -n "$ISS" ] && [ -n "$SEC" ] || { echo "ERROR: issuer/secret missing in amo-credentials.local"; exit 1; }
   [ "${#SEC}" -eq 64 ] || { echo "ERROR: secret length is ${#SEC}, expected 64"; exit 1; }
 }
